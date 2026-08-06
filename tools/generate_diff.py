@@ -865,6 +865,39 @@ def _render_mod_row(parts, row):
 
 
 # ---------------------------------------------------------------------------
+# Library entry point
+# ---------------------------------------------------------------------------
+
+def generate(old_data, new_data, old_name, new_name, min_confidence=0.80):
+    """Library entry point: render the side-by-side diff for loaded modlist data.
+
+    Pure data-in -> HTML-out; callers own all file IO and output naming.
+    """
+    old_mods = extract_mods(old_data)
+    new_mods = extract_mods(new_data)
+    matched_pairs, added_mods, removed_mods = match_mods(
+        old_mods, new_mods, min_confidence
+    )
+    old_section_order = get_separator_order(old_data)
+    new_section_order = get_separator_order(new_data)
+    section_matches, added_sections, removed_sections = match_sections(
+        old_section_order, new_section_order, matched_pairs
+    )
+    section_match_map = {name_key(old): name_key(new) for old, new in section_matches}
+    mod_changes = classify_mod_changes(matched_pairs, section_match_map)
+    rows = build_aligned_diff(
+        old_data, new_data, matched_pairs, added_mods, removed_mods,
+        section_matches, added_sections, removed_sections,
+        section_match_map, mod_changes,
+    )
+    summary = compute_summary(
+        mod_changes, added_mods, removed_mods,
+        section_matches, added_sections, removed_sections,
+    )
+    return render_html(rows, old_name, new_name, summary)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -891,45 +924,15 @@ def main():
     old_data = load_modlist(args.old_list)
     new_data = load_modlist(args.new_list)
 
-    old_mods = extract_mods(old_data)
-    new_mods = extract_mods(new_data)
-
-    # Match mods
-    matched_pairs, added_mods, removed_mods = match_mods(old_mods, new_mods, args.min_confidence)
-
-    # Match sections
-    old_section_order = get_separator_order(old_data)
-    new_section_order = get_separator_order(new_data)
-    section_matches, added_sections, removed_sections = match_sections(
-        old_section_order, new_section_order, matched_pairs
-    )
-
-    # Build section match map: old_key -> new_key (case-insensitive, see name_key)
-    section_match_map = {name_key(old): name_key(new) for old, new in section_matches}
-
-    # Classify mod changes
-    mod_changes = classify_mod_changes(matched_pairs, section_match_map)
-
-    # Build aligned diff
-    rows = build_aligned_diff(
-        old_data, new_data, matched_pairs, added_mods, removed_mods,
-        section_matches, added_sections, removed_sections,
-        section_match_map, mod_changes,
-    )
-
-    # Summary
-    summary = compute_summary(
-        mod_changes, added_mods, removed_mods,
-        section_matches, added_sections, removed_sections,
-    )
-
     # Derive list names from filenames
     import os
     old_name = os.path.splitext(os.path.basename(args.old_list))[0]
     new_name = os.path.splitext(os.path.basename(args.new_list))[0]
 
-    # Render
-    html_output = render_html(rows, old_name, new_name, summary)
+    html_output = generate(
+        old_data, new_data, old_name, new_name,
+        min_confidence=args.min_confidence,
+    )
 
     out_path = resolve_output_path(args.output, args.old_list, args.new_list, "diff", "html")
     if out_path:

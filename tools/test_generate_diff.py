@@ -7,6 +7,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import generate_diff
 from generate_diff import (
     ChangeType,
     DiffRow,
@@ -17,6 +18,7 @@ from generate_diff import (
     match_sections,
     render_html,
 )
+from modlist_utils import load_modlist
 
 
 def _summary(**over):
@@ -277,6 +279,22 @@ class CaseInsensitiveSectionTest(unittest.TestCase):
         (_o, _n, change, _ov, _nv), = classify_mod_changes(
             [(old_mod, new_mod)], {"core": "core"})
         self.assertEqual(change, ChangeType.UNCHANGED)
+
+
+EXAMPLES_LISTS = os.path.join(os.path.dirname(__file__), "..", "examples", "lists")
+EXAMPLES_REPORTS = os.path.join(os.path.dirname(__file__), "..", "examples", "reports")
+
+
+class TestGenerateEntryPoint(unittest.TestCase):
+    def test_generate_matches_committed_report(self):
+        old = load_modlist(os.path.join(EXAMPLES_LISTS, "Example List 1.0.json"))
+        new = load_modlist(os.path.join(EXAMPLES_LISTS, "Example List 1.1.json"))
+        html = generate_diff.generate(old, new, "Example List 1.0", "Example List 1.1")
+        committed = os.path.join(
+            EXAMPLES_REPORTS, "Example List 1.1", "Example List 1.0.diff.html"
+        )
+        with open(committed, "r", encoding="utf-8", newline="") as f:
+            self.assertEqual(html, f.read())
 
 
 if __name__ == "__main__":

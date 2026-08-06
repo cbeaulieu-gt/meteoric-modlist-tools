@@ -290,7 +290,7 @@ stricter, lower it to catch a rename the default missed.
 ## Testing
 
 ```bash
-cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_coverage_ignore test_coverage_server test_regenerate test_examples -v
+cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples -v
 ```
 
 The example lists under `examples/` double as this suite's fixtures — `test_examples.py`

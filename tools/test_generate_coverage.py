@@ -7,6 +7,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import generate_coverage
 from generate_coverage import (
     CoverageState,
     classify_source_mods,
@@ -14,6 +15,8 @@ from generate_coverage import (
     coverage_percent,
     render_html,
 )
+from modlist_utils import load_modlist
+from coverage_ignore import load_ignore
 
 
 def make_summary(total, add=0, newer=0, differs=0, plugins=0, removed=0, common=0,
@@ -1147,6 +1150,29 @@ class RenderBaseModeTest(unittest.TestCase):
         html = render_html(rows, compute_summary(rows), "NewBase", "MyList",
                            base_name="OldBase")
         self.assertIn('title="+b.esp | Base plugins: +b.esp"', html)
+
+
+EXAMPLES_LISTS = os.path.join(os.path.dirname(__file__), "..", "examples", "lists")
+EXAMPLES_REPORTS = os.path.join(os.path.dirname(__file__), "..", "examples", "reports")
+
+
+class TestGenerateEntryPoint(unittest.TestCase):
+    """generate() must reproduce the committed sample report byte-for-byte."""
+
+    def test_generate_matches_committed_report(self):
+        source = load_modlist(os.path.join(EXAMPLES_LISTS, "Example List 1.1.json"))
+        target = load_modlist(os.path.join(EXAMPLES_LISTS, "Example List 1.0.json"))
+        ignore = load_ignore(
+            os.path.join(EXAMPLES_REPORTS, "Example List 1.0", ".coverage-ignore.txt")
+        )
+        html = generate_coverage.generate(
+            source, target, "Example List 1.1", "Example List 1.0", ignore=ignore
+        )
+        committed = os.path.join(
+            EXAMPLES_REPORTS, "Example List 1.0", "Example List 1.1.coverage.html"
+        )
+        with open(committed, "r", encoding="utf-8", newline="") as f:
+            self.assertEqual(html, f.read())
 
 
 if __name__ == "__main__":

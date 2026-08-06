@@ -296,7 +296,7 @@ meaningful version change.
 Run the unit tests from inside `tools/`:
 
 ```bash
-cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_coverage_ignore test_coverage_server test_regenerate test_examples -v
+cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples -v
 ```
 
 When changing matching or version logic in `modlist_utils.py`, keep these green and add cases
