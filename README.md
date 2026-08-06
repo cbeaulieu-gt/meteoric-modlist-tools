@@ -59,12 +59,11 @@ open that one now to see the format without running anything.
 
 **Then, on your own lists:**
 
-**1. Install the exporter plugin.** Copy `mo2-plugins/modlist-json-exporter/` into your MO2
-installation's `plugins/` folder. See its
-[README](mo2-plugins/modlist-json-exporter/README.md) for the export steps (Tools menu →
-Export Modlist to JSON) and its
-[format specification](mo2-plugins/modlist-json-exporter/FORMAT_SPECIFICATION.md) for what
-gets captured.
+**1. Install the exporter plugin.** Copy `mo2-plugins/modlist_compare/` into your MO2
+installation's `plugins/` folder, then restart MO2 and use Tools → Modlist Compare → Export
+Modlist to JSON. See the
+[format specification](mo2-plugins/modlist_compare/FORMAT_SPECIFICATION.md) for what gets
+captured.
 
 **2. Export two versions of your modlist** to JSON (e.g. before and after an update), then run
 the same command above against your own JSON files instead of the examples.

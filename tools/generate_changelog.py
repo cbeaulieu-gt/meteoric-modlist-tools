@@ -1,7 +1,7 @@
 """
 Standalone changelog generator for JSON modlist exports.
 
-Compares two JSON modlist files (exported via modlist_json_exporter MO2 plugin)
+Compares two JSON modlist files (exported via the Modlist Compare MO2 plugin)
 and generates a markdown changelog showing added, removed, and updated mods.
 
 Uses a multi-strategy waterfall matching approach:

@@ -30,7 +30,7 @@ modlist data.
 ## JSON Format
 
 All modlist files follow the format documented in
-[FORMAT_SPECIFICATION.md](mo2-plugins/modlist-json-exporter/FORMAT_SPECIFICATION.md).
+[FORMAT_SPECIFICATION.md](mo2-plugins/modlist_compare/FORMAT_SPECIFICATION.md).
 
 ## The Tools
 
@@ -206,12 +206,20 @@ reports that already exist — it never creates new combinations. Also available
 `/regenerate <list name>` slash command. Design:
 [docs/design/2026-06-17-regenerate-reports-design.md](docs/design/2026-06-17-regenerate-reports-design.md).
 
-### Exporter — `mo2-plugins/modlist-json-exporter/modlist_json_exporter.py`
+### Exporter — `mo2-plugins/modlist_compare/`
 
-The MO2 plugin that produces the JSON exports the scripts consume. Requires MO2 2.5.0+ (PyQt6).
-Install it by copying `mo2-plugins/modlist-json-exporter/` into MO2's `plugins/` folder; it adds
-a tool to export the active modlist to JSON. See its
-[README](mo2-plugins/modlist-json-exporter/README.md).
+The **Modlist Compare** MO2 plugin produces the JSON exports the scripts consume. Requires MO2
+2.5.0+ (PyQt6). Install it by copying `mo2-plugins/modlist_compare/` into MO2's `plugins/`
+folder; it adds a *Modlist Compare → Export Modlist to JSON* entry to the Tools menu.
+
+The export logic lives in [`exporter_core.py`](mo2-plugins/modlist_compare/exporter_core.py) as
+plain functions (`strip_tags`, `extract_tags`, `sanitize_filename`, `read_meta_ini`,
+`get_plugin_files`, `suggested_list_name`, `export_modlist`) — only `export_modlist` touches
+`mobase`, and it imports it lazily, so the helpers are unit-testable outside MO2
+(`test_exporter_core.py`). The `IPluginTool` wrapper (`ExportModlistTool`) lives in
+[`plugin_tools.py`](mo2-plugins/modlist_compare/plugin_tools.py); `__init__.py` registers it via
+`createPlugins()` only when `mobase` is importable. Output format:
+[FORMAT_SPECIFICATION.md](mo2-plugins/modlist_compare/FORMAT_SPECIFICATION.md).
 
 ## The `examples/` smoke test
 

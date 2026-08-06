@@ -12,7 +12,7 @@ developed and used against real Skyrim modlists.
 
 - **Modlist JSON Exporter** — a Mod Organizer 2 plugin that exports the active
   modlist to JSON, preserving separators, plugin lists, versions, and install
-  metadata. See its [format specification](mo2-plugins/modlist-json-exporter/FORMAT_SPECIFICATION.md).
+  metadata. See its [format specification](mo2-plugins/modlist_compare/FORMAT_SPECIFICATION.md).
 - **`generate_changelog.py`** — markdown changelog between two exports: added,
   removed, and updated mods.
 - **`generate_coverage.py`** — HTML report showing what a target list is missing

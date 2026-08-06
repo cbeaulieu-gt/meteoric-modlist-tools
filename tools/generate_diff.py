@@ -1,7 +1,7 @@
 """
 Side-by-side modlist diff generator.
 
-Compares two JSON modlist files (exported via modlist_json_exporter MO2 plugin)
+Compares two JSON modlist files (exported via the Modlist Compare MO2 plugin)
 and generates a self-contained HTML file showing a visual side-by-side diff
 with color-coded indicators for added, removed, moved, and updated mods.
 

@@ -6,7 +6,7 @@ An MO2 plugin that compares two `modlist.txt` files (plus an optional exported
 modified to categorize the output.
 
 **Status: archived.** This plugin's comparison logic was the precursor to the
-[Modlist JSON Exporter](../../modlist-json-exporter/README.md) and the standalone
+[Modlist Compare exporter](../../modlist_compare/) and the standalone
 [`tools/generate_changelog.py`](../../../tools/generate_changelog.py), which supersede it —
 the JSON export carries far more matching signal (Nexus IDs, plugins, versions) than
 `modlist.txt` names. Kept for reference; not maintained.
