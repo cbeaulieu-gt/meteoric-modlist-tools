@@ -44,7 +44,7 @@
     {
       "id": 6,
       "subject": "Task 6: GenerateReportsTool, README, docs, release zip",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         2,
         4,
