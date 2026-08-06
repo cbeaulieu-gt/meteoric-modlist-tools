@@ -12,7 +12,7 @@ together as one installable MO2 plugin that can export and generate reports from
 
 ## Solution
 
-One package plugin, `mo2-plugins/modlist-compare/`, absorbing the unreleased
+One package plugin, `mo2-plugins/modlist_compare/`, absorbing the unreleased
 `modlist-json-exporter` (its folder is deleted; README and FORMAT_SPECIFICATION.md move
 into the new plugin, and links in CLAUDE.md update). `createPlugins()` returns two
 `IPluginTool`s whose `displayName()` share the `"Modlist Compare/"` prefix, which MO2
@@ -26,7 +26,7 @@ Tools ▸ Modlist Compare ▸ Export Modlist to JSON
 ### Plugin structure
 
 ```text
-mo2-plugins/modlist-compare/
+mo2-plugins/modlist_compare/
 ├── __init__.py            # createPlugins() → [ExportModlistTool(), GenerateReportsTool()]
 ├── plugin_tools.py        # the two thin IPluginTool classes
 ├── exporter_core.py       # export_modlist(organizer) → list[dict]; first-separator
@@ -103,7 +103,7 @@ CLI runs. No skill work happens now; the API shape just allows it later.
 
 - `tools/package_plugin.py` (stdlib-only) copies `modlist_utils.py`,
   `generate_coverage.py`, `generate_diff.py`, `generate_changelog.py`, and
-  `coverage_ignore.py` into `mo2-plugins/modlist-compare/_vendor/`, then zips the
+  `coverage_ignore.py` into `mo2-plugins/modlist_compare/_vendor/`, then zips the
   plugin folder to `dist/modlist-compare-<version>.zip` (version read from the
   plugin's `VersionInfo`).
 - `_vendor/*` (except `__init__.py`) and `dist/` are gitignored.
