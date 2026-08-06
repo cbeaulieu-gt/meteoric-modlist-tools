@@ -1,0 +1,10 @@
+{
+  "mechanical": "opus",
+  "standard": "opus",
+  "frontier": "inherit",
+  "effort": {
+    "mechanical": "low",
+    "standard": "medium",
+    "frontier": "inherit"
+  }
+}
