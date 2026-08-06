@@ -1,0 +1,6 @@
+# Coverage ignore list for this target modlist.
+# One mod name per line; these mods render muted (like 'common') in every
+# coverage report against this target and drop out of the actionable counts.
+# Lines starting with '#' and blank lines are ignored. Edit by hand or via
+# the coverage server (generate_coverage.py --serve).
+Sky Idles

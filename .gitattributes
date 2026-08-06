@@ -1,0 +1,10 @@
+# Normalize all text to LF in the repository.
+* text=auto eol=lf
+
+# Generated reports and example data are compared byte-for-byte by the
+# regenerate smoke test — pin them to LF explicitly.
+*.json   text eol=lf
+*.md     text eol=lf
+*.html   text eol=lf
+*.py     text eol=lf
+*.txt    text eol=lf

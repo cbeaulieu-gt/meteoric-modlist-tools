@@ -1,0 +1,35 @@
+# --- Private working data -------------------------------------------------
+# Real modlist exports and generated reports. Never published; the examples/
+# directory holds the synthetic data that ships instead.
+lists/*
+!lists/.gitkeep
+output/*
+!output/.gitkeep
+
+# MO2 API reference, copied in from a separate private plugins repo for development use only.
+docs/mo2-api/
+
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- Editors / OS ---------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Agent tooling --------------------------------------------------------
+.superpowers/
+.claude/settings.local.json
+
+# --- Misc -----------------------------------------------------------------
+*.tmp
+*.bak
+*.log

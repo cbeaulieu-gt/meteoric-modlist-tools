@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Modlist Coverage</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #1a1a2e; color: #e0e0e0; font-size: 13px; line-height: 1.4;
+    max-width: 1024px; margin: 0 auto 64px;
+}
+.header {
+    position: sticky; top: 0; z-index: 50;
+    background: #16213e; padding: 16px 24px; border-bottom: 2px solid #0f3460;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+}
+.header h1 { font-size: 20px; color: #e94560; margin-bottom: 8px; }
+.header .lists { color: #a0a0b0; font-size: 13px; margin-bottom: 8px; }
+.header .lists span { color: #e0e0e0; font-weight: 600; }
+.filter-wrap { position: relative; margin-top: 10px; }
+.filter-input {
+    width: 100%; padding: 6px 10px; padding-right: 30px;
+    background: #0f1830; color: #e0e0e0;
+    border: 1px solid #1a4a7a; border-radius: 4px;
+    font-family: inherit; font-size: 13px;
+}
+.filter-input::placeholder { color: #6b7a90; }
+.filter-input::-webkit-search-cancel-button { display: none; }
+.filter-clear {
+    position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+    background: none; border: none; padding: 2px 6px; cursor: pointer;
+    color: #6b7a90; font-size: 16px; line-height: 1; font-family: inherit;
+}
+.filter-clear:hover { color: #e0e0e0; }
+.mod-row.filter-hidden { display: none; }
+.section.filter-empty, .section-body.bandless.filter-empty, .band.filter-empty { display: none; }
+.summary { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+.summary .stat { padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.stat-covered { background: #1a4a7a; color: #e0e0e0; }
+.stat-total { background: #2a2a3a; color: #cbd5e1; }
+.stat-add { background: #0d2a16; color: #4ade80; }
+.stat-newer { background: #3a2a1a; color: #fb923c; }
+.stat-differs { background: #3a2f1a; color: #fbbf24; }
+.stat-plugins { background: #241a3a; color: #a78bfa; }
+.stat-removed { background: #2a0d12; color: #f87171; }
+.stat-common { background: #232333; color: #9ca3af; }
+.stat-ignored { background: #232333; color: #6b7280; }
+/* Mirror the row icons on the summary badges. In CSS (not the text) so serve
+   mode's setStat() textContent rewrites don't strip them. Each inherits its
+   badge color; Total and Common stay text-only. */
+.stat-add::before { content: "+ "; }
+.stat-newer::before { content: "↑ "; }
+.stat-differs::before { content: "≠ "; }
+.stat-plugins::before { content: "± "; }
+.stat-removed::before { content: "− "; }
+.stat-ignored::before { content: "⊘ "; }
+
+.controls {
+    position: fixed; top: 12px; z-index: 100;
+    right: max(16px, calc(50% - 512px + 16px));
+    display: flex; gap: 8px; align-items: center;
+}
+.toggle-btn {
+    background: #0f3460; color: #e0e0e0; border: 1px solid #1a4a7a;
+    border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.toggle-btn:hover { background: #16498a; }
+.toggle-btn.active { background: #e94560; border-color: #e94560; color: #fff; }
+
+.section { border-bottom: 1px solid #252540; }
+.section-header {
+    position: sticky; top: var(--header-h, 0px); z-index: 40;
+    background: #1e2a4a; padding: 8px 16px; font-weight: 700; font-size: 14px;
+    color: #cbd5e1; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #0f3460;
+}
+.section-header:hover { background: #243456; }
+.caret { color: #888; font-size: 11px; width: 12px; display: inline-block; transition: transform 0.1s; }
+.section.collapsed .caret { transform: rotate(-90deg); }
+.section.collapsed .section-body { display: none; }
+.badge { font-size: 11px; font-weight: 600; color: #94a3b8; margin-left: auto; }
+.band {
+    background: #141d3a; color: #8aa0c8; text-align: center;
+    font-weight: 800; letter-spacing: 2px; font-size: 11px; padding: 8px 12px;
+    border-top: 1px solid #24345a; border-bottom: 1px solid #24345a;
+}
+
+.mod-row {
+    padding: 3px 16px 3px 13px; display: flex; align-items: baseline; gap: 10px;
+    border-left: 3px solid transparent;
+}
+/* Icon column: a fixed-width gutter aligning the per-row state glyph under the
+   section-header caret (3px border + 13px padding = 16px = caret left edge;
+   12px width matches .caret). Empty by default so Common rows reserve the
+   column without a glyph and names stay aligned. */
+.mod-row::before {
+    content: ""; flex: none; width: 12px; text-align: center; font-weight: 700;
+}
+.mod-row a { color: inherit; text-decoration: none; }
+.mod-row a:hover { text-decoration: underline; }
+.mod-name { flex: 1; }
+.src-alias { color: #8b94a8; font-size: 11px; font-style: italic; margin-left: 4px; }
+.ver { font-size: 11px; white-space: nowrap; }
+
+.mod-add { background: #0d2a16; border-left-color: #4ade80; color: #4ade80; }
+.mod-newer  { background: #2a1c0a; border-left-color: #fb923c; }
+.mod-newer .ver { color: #fb923c; }
+.mod-differs { background: #2a240a; border-left-color: #fbbf24; }
+.mod-differs .ver { color: #fbbf24; }
+.mod-plugins { background: #221636; border-left-color: #a78bfa; }
+.mod-plugins .ver { color: #a78bfa; }
+.mod-removed { background: #2a0d12; border-left-color: #f87171; color: #f87171; }
+.mod-common { color: #9ca3af; }
+.mod-common .ver { color: #6b7280; }
+.mod-ignored { color: #6b7280; }
+.mod-ignored .ver { color: #5b6270; }
+
+/* State glyphs in the icon column (Common shows none). Driven purely by the
+   row's state class, so serve-mode's click-to-ignore class swap updates the
+   icon with no JS change. */
+.mod-add::before { content: "+"; color: #4ade80; }
+.mod-newer::before { content: "↑"; color: #fb923c; }
+.mod-differs::before { content: "≠"; color: #fbbf24; }
+.mod-plugins::before { content: "±"; color: #a78bfa; }
+.mod-removed::before { content: "−"; color: #f87171; }
+.mod-ignored::before { content: "⊘"; color: #6b7280; }
+
+body.hide-common .mod-common,
+body.hide-common .mod-ignored { display: none; }
+
+/* serve-mode only: these apply when render_html(serve=True) sets <body class="serve"> */
+body.serve .mod-row { cursor: pointer; }
+body.serve .mod-row:hover { background: #20203a; }
+</style>
+</head>
+<body>
+<div class="controls">
+<button class="toggle-btn" onclick="expandAll()">Expand all</button>
+<button class="toggle-btn" onclick="collapseAll()">Collapse all</button>
+<button id="toggle-common" class="toggle-btn" onclick="toggleCommon()">Hide common mods</button>
+</div>
+<div class="header">
+<h1>Modlist Coverage</h1>
+<div class="lists">Source: <span>Example List 1.1</span> &nbsp;vs&nbsp; Target: <span>Example List 1.0</span></div>
+<div class="summary">
+<span id="stat-covered" class="stat stat-covered" title="Share of source mods the target already handles: have-it or ignored count full, different-version or different-plugins counts half, missing or base-removed count zero.">75% covered</span>
+<span class="stat stat-total">14 mods</span>
+<span id="stat-add" class="stat stat-add">1 to add</span>
+<span id="stat-newer" class="stat stat-newer">3 newer</span>
+<span id="stat-differs" class="stat stat-differs">0 differs</span>
+<span id="stat-plugins" class="stat stat-plugins">2 plugins</span>
+<span id="stat-ignored" class="stat stat-ignored">1 ignored</span>
+<span id="stat-common" class="stat stat-common">7 common</span>
+</div>
+<div class="filter-wrap"><input type="search" id="filter-input" class="filter-input" placeholder="Filter mods… (space = AND)" autocomplete="off"><button type="button" id="filter-clear" class="filter-clear" aria-label="Clear filter" hidden>&times;</button></div>
+</div>
+<div class="band">CORE</div>
+<div class="section-body bandless">
+<div class="mod-row mod-common" data-names="address library for skse plugins">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/32444" target="_blank" rel="noopener">Address Library for SKSE Plugins</a></span>
+<span class="ver">16.0</span>
+</div>
+<div class="mod-row mod-newer" data-names="powerofthree&#x27;s papyrus extender">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/22854" target="_blank" rel="noopener">powerofthree&#x27;s Papyrus Extender</a></span>
+<span class="ver">5.5 → 5.6</span>
+</div>
+<div class="mod-row mod-common" data-names="skyui">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/12604" target="_blank" rel="noopener">SkyUI</a></span>
+<span class="ver">5.2</span>
+</div>
+</div>
+<div class="section">
+<div class="section-header" onclick="toggleSection(this)">
+<span class="caret">▾</span>
+<span>BUG FIXES</span>
+<span class="badge">1 newer · 1 plugins</span>
+</div>
+<div class="section-body">
+<div class="mod-row mod-newer" data-names="unofficial skyrim special edition patch">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/266" target="_blank" rel="noopener">Unofficial Skyrim Special Edition Patch</a></span>
+<span class="ver">4.2.9 → 4.3</span>
+</div>
+<div class="mod-row mod-plugins" data-names="cutting room floor merged
+cutting room floor">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/276" target="_blank" rel="noopener">Cutting Room Floor<span class="src-alias">(Cutting Room Floor Merged)</span></a></span>
+<span class="ver" title="+crf-ussep patch.esp">3.2.1 +crf-ussep patch.esp</span>
+</div>
+</div>
+</div>
+<div class="section">
+<div class="section-header" onclick="toggleSection(this)">
+<span class="caret">▾</span>
+<span>Gameplay</span>
+<span class="badge">1 add · 1 plugins</span>
+</div>
+<div class="section-body">
+<div class="mod-row mod-plugins" data-names="wet and cold">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/644" target="_blank" rel="noopener">Wet and Cold</a></span>
+<span class="ver" title="+wetandcold - ashes.esp">2.0 +wetandcold - ashes.esp</span>
+</div>
+<div class="mod-row mod-add" data-names="dear diary dark mode">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/9101" target="_blank" rel="noopener">Dear Diary Dark Mode</a></span>
+<span class="ver">1.0</span>
+</div>
+<div class="mod-row mod-ignored" data-names="sky idles">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/9102" target="_blank" rel="noopener">Sky Idles</a></span>
+<span class="ver">1.0</span>
+</div>
+<div class="mod-row mod-common" data-names="timing is everything">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/15406" target="_blank" rel="noopener">Timing is Everything</a></span>
+<span class="ver">2.2.5</span>
+</div>
+</div>
+</div>
+<div class="band">VISUALS</div>
+<div class="section">
+<div class="section-header" onclick="toggleSection(this)">
+<span class="caret">▾</span>
+<span>Textures</span>
+<span class="badge">1 newer</span>
+</div>
+<div class="section-body">
+<div class="mod-row mod-common" data-names="skyrim 2020 parallax">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/2347" target="_blank" rel="noopener">Skyrim 2020 Parallax</a></span>
+<span class="ver">8.4</span>
+</div>
+<div class="mod-row mod-newer" data-names="landscape fixes for grass mods
+skyrim landscape overhaul">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/9005" target="_blank" rel="noopener">Skyrim Landscape Overhaul<span class="src-alias">(Landscape Fixes For Grass Mods)</span></a></span>
+<span class="ver">1.2 → 1.3</span>
+</div>
+<div class="mod-row mod-common" data-names="rudy hq - nordic ruins">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/20988" target="_blank" rel="noopener">Rudy HQ - Nordic Ruins</a></span>
+<span class="ver">5/12/2026</span>
+</div>
+</div>
+</div>
+<div class="section collapsed">
+<div class="section-header" onclick="toggleSection(this)">
+<span class="caret">▾</span>
+<span>Patches</span>
+<span class="badge">all present</span>
+</div>
+<div class="section-body">
+<div class="mod-row mod-common" data-names="custom patches">
+<span class="mod-name">Custom Patches</span>
+
+</div>
+<div class="mod-row mod-common" data-names="landscape fixes patch collection">
+<span class="mod-name"><a href="https://www.nexusmods.com/skyrimspecialedition/mods/8888" target="_blank" rel="noopener">Landscape Fixes Patch Collection</a></span>
+<span class="ver">1.0</span>
+</div>
+</div>
+</div>
+<script>
+function toggleSection(h){h.parentElement.classList.toggle('collapsed');}function expandAll(){document.querySelectorAll('.section').forEach(function(s){s.classList.remove('collapsed');});}function collapseAll(){document.querySelectorAll('.section').forEach(function(s){s.classList.add('collapsed');});}function toggleCommon(){var on=document.body.classList.toggle('hide-common');var b=document.getElementById('toggle-common');b.classList.toggle('active',on);b.textContent=on?'Show common mods':'Hide common mods';refilter();}function setHeaderH(){var h=document.querySelector('.header');if(h)document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px');}window.addEventListener('resize',setHeaderH);setHeaderH();function filterMods(q){var terms=(q||'').trim().toLowerCase().split(/\s+/).filter(Boolean);document.querySelectorAll('[data-names]').forEach(function(row){var hide=false;if(terms.length){var names=row.getAttribute('data-names').split('\n');hide=!names.some(function(n){return terms.every(function(t){return n.indexOf(t)!==-1;});});}row.classList.toggle('filter-hidden',hide);});applySectionVisibility(terms.length>0);}function rowCounts(row){if(row.classList.contains('filter-hidden'))return false;if(document.body.classList.contains('hide-common')&&(row.classList.contains('mod-common')||row.classList.contains('mod-ignored')))return false;return true;}function unitHasMatch(u){var rows=u.querySelectorAll('.mod-row');for(var i=0;i<rows.length;i++)if(rowCounts(rows[i]))return true;return false;}function applySectionVisibility(active){document.querySelectorAll('.section, .section-body.bandless').forEach(function(u){u.classList.toggle('filter-empty',active&&!unitHasMatch(u));});document.querySelectorAll('.band').forEach(function(b){var any=false;for(var el=b.nextElementSibling;el&&!el.classList.contains('band');el=el.nextElementSibling){if((el.classList.contains('section')||el.classList.contains('bandless'))&&!el.classList.contains('filter-empty')){any=true;break;}}b.classList.toggle('filter-empty',active&&!any);});}function refilter(){var i=document.getElementById('filter-input');filterMods(i?i.value:'');}(function(){var i=document.getElementById('filter-input');if(!i)return;var c=document.getElementById('filter-clear');function sync(){if(c)c.hidden=!i.value;}i.addEventListener('input',function(){filterMods(this.value);sync();});i.addEventListener('keydown',function(e){if(e.key==='Escape'){this.value='';filterMods('');sync();}});if(c)c.addEventListener('click',function(){i.value='';filterMods('');sync();i.focus();});sync();})();
+</script>
+</body></html>

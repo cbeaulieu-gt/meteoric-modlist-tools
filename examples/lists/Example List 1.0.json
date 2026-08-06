@@ -1,0 +1,473 @@
+[
+  {
+    "id": null,
+    "type": "separator",
+    "separatorName": "---------- CORE ----------",
+    "modName": "---------- CORE ----------",
+    "displayName": "---------- CORE ----------_separator",
+    "plugins": [],
+    "general": {},
+    "installed": {},
+    "order": 0,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 32444,
+    "type": "mod",
+    "separatorName": "---------- CORE ----------",
+    "modName": "Address Library for SKSE Plugins",
+    "displayName": "Address Library for SKSE Plugins",
+    "plugins": [],
+    "general": {
+      "modid": "32444",
+      "version": "16.0.0.0",
+      "newestVersion": "16.0.0.0",
+      "category": "\"1,\"",
+      "installationFile": "Address Library for SKSE Plugins-32444-16-0-0-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "32444",
+          "fileid": "32444001"
+        }
+      ]
+    },
+    "order": 1,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 22854,
+    "type": "mod",
+    "separatorName": "---------- CORE ----------",
+    "modName": "powerofthree's Papyrus Extender",
+    "displayName": "powerofthree's Papyrus Extender",
+    "plugins": [],
+    "general": {
+      "modid": "22854",
+      "version": "5.5.0.0",
+      "newestVersion": "5.5.0.0",
+      "category": "\"1,\"",
+      "installationFile": "powerofthree's Papyrus Extender-22854-5-5-0-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "22854",
+          "fileid": "22854001"
+        }
+      ]
+    },
+    "order": 2,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": null,
+    "type": "separator",
+    "separatorName": "Bug Fixes",
+    "modName": "Bug Fixes",
+    "displayName": "Bug Fixes_separator",
+    "plugins": [],
+    "general": {},
+    "installed": {},
+    "order": 3,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 266,
+    "type": "mod",
+    "separatorName": "Bug Fixes",
+    "modName": "Unofficial Skyrim Special Edition Patch",
+    "displayName": "Unofficial Skyrim Special Edition Patch",
+    "plugins": [
+      "Unofficial Skyrim Special Edition Patch.esp"
+    ],
+    "general": {
+      "modid": "266",
+      "version": "4.2.9.0",
+      "newestVersion": "4.2.9.0",
+      "category": "\"1,\"",
+      "installationFile": "Unofficial Skyrim Special Edition Patch-266-4-2-9-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "266",
+          "fileid": "266001"
+        }
+      ]
+    },
+    "order": 4,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 276,
+    "type": "mod",
+    "separatorName": "Bug Fixes",
+    "modName": "Cutting Room Floor",
+    "displayName": "Cutting Room Floor",
+    "plugins": [
+      "CuttingRoomFloor.esp"
+    ],
+    "general": {
+      "modid": "276",
+      "version": "3.2.1.0",
+      "newestVersion": "3.2.1.0",
+      "category": "\"1,\"",
+      "installationFile": "Cutting Room Floor-276-3-2-1-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "276",
+          "fileid": "276001"
+        }
+      ]
+    },
+    "order": 5,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 276,
+    "type": "mod",
+    "separatorName": "Bug Fixes",
+    "modName": "Cutting Room Floor - USSEP Patch",
+    "displayName": "Cutting Room Floor - USSEP Patch",
+    "plugins": [
+      "CRF-USSEP Patch.esp"
+    ],
+    "general": {
+      "modid": "276",
+      "version": "3.2.1.0",
+      "newestVersion": "3.2.1.0",
+      "category": "\"1,\"",
+      "installationFile": "Cutting Room Floor - USSEP Patch-276-3-2-1-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "276",
+          "fileid": "276002"
+        }
+      ]
+    },
+    "order": 6,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": null,
+    "type": "separator",
+    "separatorName": "Gameplay",
+    "modName": "Gameplay",
+    "displayName": "Gameplay_separator",
+    "plugins": [],
+    "general": {},
+    "installed": {},
+    "order": 7,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 12604,
+    "type": "mod",
+    "separatorName": "Gameplay",
+    "modName": "SkyUI",
+    "displayName": "SkyUI",
+    "plugins": [
+      "SkyUI_SE.esp"
+    ],
+    "general": {
+      "modid": "12604",
+      "version": "5.2.0.0",
+      "newestVersion": "5.2.0.0",
+      "category": "\"1,\"",
+      "installationFile": "SkyUI-12604-5-2-0-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "12604",
+          "fileid": "12604001"
+        }
+      ]
+    },
+    "order": 8,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 644,
+    "type": "mod",
+    "separatorName": "Gameplay",
+    "modName": "Wet and Cold",
+    "displayName": "Wet and Cold",
+    "plugins": [
+      "WetandCold.esp"
+    ],
+    "general": {
+      "modid": "644",
+      "version": "2.0.0.0",
+      "newestVersion": "2.0.0.0",
+      "category": "\"1,\"",
+      "installationFile": "Wet and Cold-644-2-0-0-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "644",
+          "fileid": "644001"
+        }
+      ]
+    },
+    "order": 9,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 9010,
+    "type": "mod",
+    "separatorName": "Gameplay",
+    "modName": "Old Menu Replacer",
+    "displayName": "Old Menu Replacer",
+    "plugins": [
+      "OldMenu.esp"
+    ],
+    "general": {
+      "modid": "9010",
+      "version": "1.4.0.0",
+      "newestVersion": "1.4.0.0",
+      "category": "\"1,\"",
+      "installationFile": "Old Menu Replacer-9010-1-4-0-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "9010",
+          "fileid": "9010001"
+        }
+      ]
+    },
+    "order": 10,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 15406,
+    "type": "mod",
+    "separatorName": "Gameplay",
+    "modName": "Timing is Everything",
+    "displayName": "Timing is Everything",
+    "plugins": [
+      "TimingIsEverything.esp"
+    ],
+    "general": {
+      "modid": "15406",
+      "version": "2.2.5.0",
+      "newestVersion": "2.2.5.0",
+      "category": "\"1,\"",
+      "installationFile": "Timing is Everything-15406-2-2-5-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "15406",
+          "fileid": "15406001"
+        }
+      ]
+    },
+    "order": 11,
+    "tags": [],
+    "active": false
+  },
+  {
+    "id": null,
+    "type": "separator",
+    "separatorName": "---------- VISUALS ----------",
+    "modName": "---------- VISUALS ----------",
+    "displayName": "---------- VISUALS ----------_separator",
+    "plugins": [],
+    "general": {},
+    "installed": {},
+    "order": 12,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": null,
+    "type": "separator",
+    "separatorName": "Textures",
+    "modName": "Textures",
+    "displayName": "Textures_separator",
+    "plugins": [],
+    "general": {},
+    "installed": {},
+    "order": 13,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 2347,
+    "type": "mod",
+    "separatorName": "Textures",
+    "modName": "Skyrim 2020 Parallax",
+    "displayName": "Skyrim 2020 Parallax",
+    "plugins": [],
+    "general": {
+      "modid": "2347",
+      "version": "8.4.0.0",
+      "newestVersion": "8.4.0.0",
+      "category": "\"1,\"",
+      "installationFile": "Skyrim 2020 Parallax-2347-8-4-0-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "2347",
+          "fileid": "2347001"
+        }
+      ]
+    },
+    "order": 14,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 9005,
+    "type": "mod",
+    "separatorName": "Textures",
+    "modName": "Skyrim Landscape Overhaul",
+    "displayName": "Skyrim Landscape Overhaul",
+    "plugins": [
+      "LandscapeOverhaul.esp"
+    ],
+    "general": {
+      "modid": "9005",
+      "version": "1.2.0.0",
+      "newestVersion": "1.2.0.0",
+      "category": "\"1,\"",
+      "installationFile": "Skyrim Landscape Overhaul-9005-1-2-0-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "9005",
+          "fileid": "9005001"
+        }
+      ]
+    },
+    "order": 15,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 20988,
+    "type": "mod",
+    "separatorName": "Textures",
+    "modName": "Rudy HQ - Nordic Ruins",
+    "displayName": "Rudy HQ - Nordic Ruins",
+    "plugins": [],
+    "general": {
+      "modid": "20988",
+      "version": "d2026.5.12.0",
+      "newestVersion": "d2026.5.12.0",
+      "category": "\"1,\"",
+      "installationFile": "Rudy HQ - Nordic Ruins-20988-d2026-5-12-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "20988",
+          "fileid": "20988001"
+        }
+      ]
+    },
+    "order": 16,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": null,
+    "type": "separator",
+    "separatorName": "Patches",
+    "modName": "Patches",
+    "displayName": "Patches_separator",
+    "plugins": [],
+    "general": {},
+    "installed": {},
+    "order": 17,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": "Custom Patches",
+    "type": "mod",
+    "separatorName": "Patches",
+    "modName": "Custom Patches",
+    "displayName": "Custom Patches",
+    "plugins": [
+      "MyPatch.esp"
+    ],
+    "general": {
+      "modid": "",
+      "version": "",
+      "newestVersion": "",
+      "category": "",
+      "installationFile": ""
+    },
+    "installed": {
+      "size": 0,
+      "files": []
+    },
+    "order": 18,
+    "tags": [],
+    "active": true
+  },
+  {
+    "id": 8888,
+    "type": "mod",
+    "separatorName": "Patches",
+    "modName": "Landscape Fixes Patch Collection",
+    "displayName": "Landscape Fixes Patch Collection",
+    "plugins": [
+      "LFPatch.esp"
+    ],
+    "general": {
+      "modid": "8888",
+      "version": "1.0.0.0",
+      "newestVersion": "1.0.0.0",
+      "category": "\"1,\"",
+      "installationFile": "Landscape Fixes Patch Collection-8888-1-0-0-0-1748270590.7z"
+    },
+    "installed": {
+      "size": 1,
+      "files": [
+        {
+          "modid": "8888",
+          "fileid": "8888001"
+        }
+      ]
+    },
+    "order": 19,
+    "tags": [],
+    "active": true
+  }
+]
