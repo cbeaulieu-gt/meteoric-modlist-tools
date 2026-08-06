@@ -9,6 +9,15 @@ JSON exports of a modlist, it generates human-readable changelogs, side-by-side 
 The lists are exported from MO2 with the bundled exporter plugin, then fed to the standalone
 Python scripts in `tools/`.
 
+## Guiding Principle
+
+The principle "Everything should be made as simple as possible, but not simpler" guides all decisions in this codebase. When weighing options:
+
+- **Prefer the simpler solution** that fully solves the problem
+- **Resist adding complexity** for hypothetical future needs
+- **Stop when it works** — don't polish beyond what's needed
+- **But don't oversimplify** — essential complexity exists for good reasons
+
 ## Project Structure
 
 The three generators and `modlist_utils.py` live together in `tools/` so the scripts can import
@@ -294,6 +303,15 @@ When changing matching or version logic in `modlist_utils.py`, keep these green 
 for new behavior. `test_examples.py` runs against the fixtures in `examples/lists/` — if you
 change those fixtures, re-run the [smoke test](#the-examples-smoke-test) above and re-commit
 `examples/reports/` deliberately.
+
+## Superpowers driving rules
+
+Project-local amendments to the superpowers plan workflow live in
+[docs/superpowers/driving-rules.md](docs/superpowers/driving-rules.md) — read it before
+coordinating a plan run. Its core rule: a subagent question that a seasoned engineer would just
+handle goes to the `jarl` agent (delegated arbitration, [.claude/agents/jarl.md](.claude/agents/jarl.md))
+before interrupting the user; only irreversible actions, scope changes, and plan-marked user
+gates go straight to the human.
 
 ## Working Notes
 
