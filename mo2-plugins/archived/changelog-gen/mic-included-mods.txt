@@ -1,0 +1,138 @@
+.1130 _Resourcepack fixes
+Actually Flat Snow Drifts
+Assorted Mesh Fixes - OSHA-Compliant Sovngarde Mesh Fixes
+Better Karstaag Skull Wall
+Better Ladder UV Mapping
+Blackreach Tentacle Mesh Fix
+Bright Falling Leaves Fix
+CC Bone Colossus Skeleton Fix
+Chimney Dark Interior Fix
+Clovers Don't Float
+Creation Club Asset Patch
+Creep Cluster Collision Fixes
+Dawnstar and Brandy-Mug Farm Fences Fixed (BOS)
+Dead Fishes Don't Glow
+Death Hound Loading Screen Eye Fix
+Dragon Mounds - Better Collision and Mesh Fixes
+Dlizzio's Mesh Fixes
+DweFarm01 and DweFarm02 Mesh Fix Replacer
+Dwemer Centurion Draw Call Fix SE
+Fallen Log Floating Pieces and Cut Off Branch Fix
+Farm Hat 01 Clipping Fix
+Farmhouse05 UV Fix
+Fixed Beggar Clothing Meshes
+Fixed Spider Eggs and Webs in Solstheim
+Floating Ash Pile Fix
+Frostbite Spider UV Fix
+Glass Armor Male Mesh Fix
+Glowing Mushroom Collision Fixes
+Guild Master's Armor First Person Texture Fix
+Hearthfire BYOH Mesh Fixes
+Ice Wraith Teeth Collision Fixes
+ja's HornCandle Fix
+Load Screen Shading Fix
+Mine Doors Fixed
+Misc. SMIM Fixes
+Ore Vein Cube Map and Shader Fixes
+OSHA-Compliant Sovengarde Mesh Fixes
+Riften Temple Sconce Fix - Base Object Swapper or Sconce Nif Replacement
+SB - Better Blending Helgen Mud (normal option)
+Scaffolding Over Sovngarde - Collision Overhaul
+Scattered Embers Mesh and Position Fix
+Simple Mesh Fixes
+Solitude Interiors Meshes Fixes
+Spiders of Solstheim - Transparency Fix
+Stretching Hoes Fix
+Temple of Kynareth UV Fix
+The Smallest Windhelm Mesh Fix
+Vampire Loading Screen Eye Fix (Load Screen Shading Fix version)
+Unofficial Material Fix - Creep Cluster Collision Fixes
+Vanilla Jarl Longhouse Mesh Fix
+Whiterun Dragon Trap SMIM Fix
+Whiterun Fence Base Seam Fix
+Whiterun Maingate Walkway Collision Fix
+Whiterun Objects SMIMed (and fixes too)
+Whiterun Wall Rubble Fixed
+Windhelm Fake Windows Fix
+Windhelm Fake Windows Fix - Assorted Mesh Fixes Patch
+Wiseman303's Flora Fixes - Revamped (including the SMIM Patch)
+Wood Wall Trap Mesh and UV Fix
+Word Wall Transparency Fix for ENB
+3D Dwemer Sun - Subterranean Object SMIMed - Blackreach
+3D Junipers - Trees and Berries
+Animated Forge Water
+Better Bellows - Blacksmith Forge Mesh Improvements
+Better Effigy of King Olaf
+Better Vanilla Gravestones
+Better Windhelm Ground Meshes
+Better Windhelm Ground Meshes - Valunstrad
+Bigger Fishing Rods for CC Fishing
+Blue Palace Dome Windows
+Creation Club Content - Properly Environment Mapped
+Drengin's Blue Palace - Mesh Only Replacer
+Garlic - A Garlic Mod
+Grindstone Mesh Replacements
+High Detail Vanilla Dragon L.O.D
+High Poly Blackreach Mushrooms
+High Poly Canticle Tree
+High Poly Gleamblossoms
+High Poly Soul Husks
+Higher Poly Vanilla Alchemy Stations
+Higher Poly Vanilla Cave Lamps
+Higher Poly Vanilla Cauldrons
+Higher Poly Vanilla Dragons
+Higher Poly Vanilla Eldergleam Roots
+Higher Poly Vanilla Dragon Skeleton and Bone Clutter
+Higher Poly Vanilla Gildergreen
+Higher Poly Vanilla Horses
+Higher Poly Vanilla Mage Statue
+Higher Poly Vanilla Meat Meshes
+Higher Poly Vanilla Noble Furniture (including the SMIM Patch)
+Higher Poly Vanilla Oil Lamp Trap
+Higher Poly Vanilla Saddles
+Higher Poly Vanilla Wall Baskets
+Higher Poly Vanilla Windcaller Tomb and Horn
+Higher Poly Vanilla Wolfskull Altar
+Less Repetitive Farmhouse Stonewalls
+Lokbrom - Meshes Improvements
+Mesh Improvement Compilation - rockcairnevil addon
+Nordic Ruins Rubble Pile - Mesh Improvement
+Optional Round FarmHouse Posts (ORFP) (including the position fix)
+Pleasing Polygon Increase - Whiterun Farm Fences (including WR Great House Fence)
+Random Barrel Roll - Base Object Swapper
+Reasonably Round Dunmer Lanterns
+Riekling Barrels SMIM
+Riften Plaza Well - 3D Trellis
+Scallions of Skyrim - High Polygon Leeks
+Sconces of Skyrim - Markarth and Dwemer Braziers Improved
+Skyland AIO (Not Only) - Better Imperial Forts
+Skyrim Objects SMIMed - Grain Mills - Wind Mills
+Skyrim Objects SMIMed - Noble Furniture (2K textures)
+Skyrim Objects SMIMed - Warmaiden's Holes
+Slaughterfish Eggs Are Fish Eggs
+Slightly Better Rock Cairns
+SMIM Barrel Expansion - Mead Barrel - Oil Barrel - Butter Churn
+SMIM SE 'Farming Creation Club' Patch
+Solitude Objects SMIMed - Castle Dour Spire
+Solitude Objects SMIMed - Festival Ropes (FOMOD: dock ropes, metal ring)
+Solitude Objects SMIMed - Solitude Well
+Solstheim Objects SMIMed - High Poly Dark Elf Furniture
+Sowables of Skyrim - Potatoes (option: exposed roots)
+Spiky Grass Mesh Improvements
+Stacks of Septims - 3d Coin Piles
+Stockades of Skyrim 3D
+Subdivide and Smooth - Ash Pebbles (mountain texture version)
+Subdivide and Smooth - Bandit Poles
+Subdivide and Smooth - Falmer Drip
+Subdivide and Smooth - Frost Atronachs (including the Ancient Frost Atronach)
+Subdivide and Smooth - Hagraven
+Subdivide and Smooth - Sovengarde Brazier
+Subdivide and Smooth - Storm Atronachs
+Subdivide and Smooth - Vines
+Survival Stews - SMIM Meshes
+Thalmor Embassy - Only Mesh Fixes (including LOD-addon)
+Tundra Homestead - SMIM Chains
+Vanilla Plus Orc Furniture
+Whiterun Objects SMIMed - Dragonsreach Stairs
+Windhelm Brazier - Vanilla Plus (High-ish Poly) Replacer
+Windhelm Fences 3D (vanilla texture path)
