@@ -206,20 +206,50 @@ reports that already exist — it never creates new combinations. Also available
 `/regenerate <list name>` slash command. Design:
 [docs/design/2026-06-17-regenerate-reports-design.md](docs/design/2026-06-17-regenerate-reports-design.md).
 
-### Exporter — `mo2-plugins/modlist_compare/`
+### Modlist Compare plugin — `mo2-plugins/modlist_compare/`
 
-The **Modlist Compare** MO2 plugin produces the JSON exports the scripts consume. Requires MO2
-2.5.0+ (PyQt6). Install it by copying `mo2-plugins/modlist_compare/` into MO2's `plugins/`
-folder; it adds a *Modlist Compare → Export Modlist to JSON* entry to the Tools menu.
+The MO2 plugin that both **produces** the JSON exports the scripts consume and **runs** the same
+three generators from inside MO2. Requires MO2 2.5.0+ (PyQt6). Installed by unzipping
+`dist/modlist-compare-<version>.zip` into MO2's `plugins/`; it adds a **Modlist Compare**
+submenu (the `"Modlist Compare/"` prefix in each tool's `displayName()` is what MO2 renders as a
+submenu) with two entries. User docs:
+[the plugin README](mo2-plugins/modlist_compare/README.md). Design:
+[docs/design/2026-08-06-modlist-compare-plugin-design.md](docs/design/2026-08-06-modlist-compare-plugin-design.md).
 
-The export logic lives in [`exporter_core.py`](mo2-plugins/modlist_compare/exporter_core.py) as
-plain functions (`strip_tags`, `extract_tags`, `sanitize_filename`, `read_meta_ini`,
-`get_plugin_files`, `suggested_list_name`, `export_modlist`) — only `export_modlist` touches
-`mobase`, and it imports it lazily, so the helpers are unit-testable outside MO2
-(`test_exporter_core.py`). The `IPluginTool` wrapper (`ExportModlistTool`) lives in
-[`plugin_tools.py`](mo2-plugins/modlist_compare/plugin_tools.py); `__init__.py` registers it via
-`createPlugins()` only when `mobase` is importable. Output format:
+**Export Modlist to JSON** (`ExportModlistTool`) — save-file dialog, then writes the active
+profile's modlist. The export logic lives in
+[`exporter_core.py`](mo2-plugins/modlist_compare/exporter_core.py) as plain functions
+(`strip_tags`, `extract_tags`, `sanitize_filename`, `read_meta_ini`, `get_plugin_files`,
+`suggested_list_name`, `export_modlist`) — only `export_modlist` touches `mobase`, and it imports
+it lazily, so the helpers are unit-testable outside MO2 (`test_exporter_core.py`). Output format:
 [FORMAT_SPECIFICATION.md](mo2-plugins/modlist_compare/FORMAT_SPECIFICATION.md).
+
+**Generate Reports…** (`GenerateReportsTool`) — opens
+[`dialog.py`](mo2-plugins/modlist_compare/dialog.py)'s `GenerateReportsDialog`, where each side of
+the comparison is either the current profile (exported live) or a JSON file, and any combination
+of coverage/diff/changelog is written to a chosen folder. The dialog import sits *inside*
+`display()` so an import-time problem in `dialog.py` surfaces on click instead of dropping the
+whole plugin at registration. Dialog state persists via `IOrganizer.setPersistent` keyed on the
+tool's `name()`.
+
+Both `IPluginTool` wrappers live in
+[`plugin_tools.py`](mo2-plugins/modlist_compare/plugin_tools.py) on a shared `_BaseTool`;
+`__init__.py` registers them via `createPlugins()` only when `mobase` is importable.
+
+**Same code as the CLI.** [`report_runner.py`](mo2-plugins/modlist_compare/report_runner.py)
+(Qt-free, unit-tested) calls each generator's pure `generate(...) → str` entry function — the same
+one `main()` uses — and writes files through `modlist_utils.resolve_output_path`, so plugin and
+CLI naming (`<dest>/<list2>/<list1>.<type>.<ext>`) can never drift. Coverage reads the target's
+`.coverage-ignore.txt` exactly like a static CLI run.
+
+**Packaging.** `python tools/package_plugin.py` copies the five generator modules from `tools/`
+into `mo2-plugins/modlist_compare/_vendor/` (byte-identical) and builds
+`dist/modlist-compare-<version>.zip` (version read from `VersionInfo(...)` in `plugin_tools.py`;
+`test_*.py` and `__pycache__` excluded). `_vendor/` (except its `__init__.py`) and `dist/` are
+gitignored — **run the script before testing or shipping the plugin**, since `report_runner`
+imports the vendored copies. `_vendor/__init__.py` puts its own directory on `sys.path` just long
+enough to import the modules under their plain names (they import each other as siblings), and
+raises a loud `ImportError` naming `tools/package_plugin.py` when the folder is unpopulated.
 
 ## The `examples/` smoke test
 
@@ -304,7 +334,14 @@ meaningful version change.
 Run the unit tests from inside `tools/`:
 
 ```bash
-cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples -v
+cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin -v
+```
+
+The plugin's own tests (`exporter_core`, `report_runner`) run outside MO2 — no `mobase`, no Qt —
+from the repo root:
+
+```bash
+python -m unittest discover -s mo2-plugins/modlist_compare -t mo2-plugins -p "test_*.py" -v
 ```
 
 When changing matching or version logic in `modlist_utils.py`, keep these green and add cases

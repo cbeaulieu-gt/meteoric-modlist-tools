@@ -76,3 +76,30 @@ class ExportModlistTool(_BaseTool):
                 "Export Failed",
                 f"Failed to export modlist:\n{str(e)}",
             )
+
+
+class GenerateReportsTool(_BaseTool):
+    def name(self) -> str:
+        return "Modlist Compare Reports"
+
+    def description(self) -> str:
+        return "Generate coverage, diff, and changelog reports between two modlists."
+
+    def displayName(self) -> str:
+        return f"{SUBMENU}/Generate Reports…"
+
+    def tooltip(self) -> str:
+        return self.description()
+
+    def display(self):
+        if not self._organizer:
+            return
+        # Imported here, not at module level: a dialog.py import-time problem
+        # then surfaces as an error on click instead of silently dropping the
+        # whole plugin at registration time.
+        from .dialog import GenerateReportsDialog
+
+        dialog = GenerateReportsDialog(
+            self._parent_widget, self._organizer, self.name()
+        )
+        dialog.exec()
