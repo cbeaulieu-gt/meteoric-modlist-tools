@@ -153,11 +153,27 @@ class GenerateReportsDialog(QDialog):
     def _warn(self, message):
         QMessageBox.warning(self, _TITLE, message)
 
+    @staticmethod
+    def _same_path(a, b):
+        """Compare two paths the way the filesystem does (case-insensitive)."""
+        if not a or not b:
+            return False
+        return (os.path.normcase(os.path.abspath(a))
+                == os.path.normcase(os.path.abspath(b)))
+
     def _resolve_side(self, label, picker):
         """Return a ListSide, or None after warning the user."""
         if picker.is_live():
-            data = exporter_core.export_modlist(self._organizer)
-            name = exporter_core.suggested_list_name(self._organizer)
+            # Unhandled exceptions escaping a Qt slot go through qFatal() and
+            # abort MO2, so the live export is guarded like the file branch.
+            try:
+                data = exporter_core.export_modlist(self._organizer)
+                name = exporter_core.suggested_list_name(self._organizer)
+            except Exception as e:
+                self._warn(
+                    f"{label}: could not export the current profile\n\n{e}"
+                )
+                return None
             return report_runner.ListSide(name=name, data=data, live=True)
         path = picker.path()
         if not path:
@@ -174,7 +190,7 @@ class GenerateReportsDialog(QDialog):
             self._warn("Both sides are the current profile — pick a JSON file for one side.")
             return
         if (not self._side1.is_live() and not self._side2.is_live()
-                and self._side1.path() and self._side1.path() == self._side2.path()):
+                and self._same_path(self._side1.path(), self._side2.path())):
             self._warn("Both sides are the same file.")
             return
         report_types = [r for r, box in self._report_boxes.items() if box.isChecked()]
