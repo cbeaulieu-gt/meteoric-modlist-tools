@@ -93,6 +93,9 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
             if not side.live:
                 continue
             try:
+                # Only resolve_output_path creates dest_dir, and it may not have
+                # run (no reports selected, or every one failed).
+                os.makedirs(dest_dir, exist_ok=True)
                 path = os.path.join(dest_dir, side.name + ".json")
                 with open(path, "w", encoding="utf-8") as f:
                     json.dump(side.data, f, indent=2, ensure_ascii=False)

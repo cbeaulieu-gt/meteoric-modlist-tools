@@ -124,6 +124,23 @@ class TestRunReports(unittest.TestCase):
         self.assertEqual(round_trip.data, live.data)
         self.assertEqual(result.errors, [])
 
+    def test_saves_live_export_into_a_not_yet_created_dest_dir(self):
+        # Only the report writes create dest_dir; when every report fails, the
+        # live export must still land (dest_dir created by the export branch).
+        live = _side(NEW_LIST)
+        live.live = True
+        boom = mock.Mock(side_effect=RuntimeError("boom"))
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = os.path.join(tmp, "fresh")  # deliberately does not exist yet
+            with mock.patch.object(report_runner.generate_changelog, "generate", boom):
+                result = report_runner.run_reports(
+                    live, _side(OLD_LIST), ["changelog"], dest, save_exports=True,
+                )
+            saved = os.path.join(dest, "Example List 1.1.json")
+            self.assertEqual(result.written, [saved])
+            self.assertTrue(os.path.getsize(saved) > 0)
+            self.assertEqual(result.errors, ["changelog: boom"])
+
     def test_generator_failure_is_collected_and_later_reports_still_run(self):
         # A real generator blows up on the FIRST requested type; the second must
         # still be produced, proving the loop continues past a failure.

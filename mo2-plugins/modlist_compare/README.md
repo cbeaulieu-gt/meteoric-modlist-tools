@@ -20,6 +20,9 @@ same file naming, so plugin output and CLI output are interchangeable.
    `modlist_compare/` folder, so you should end up with `plugins/modlist_compare/`.
 3. Restart MO2. **Tools ▸ Modlist Compare** appears in the toolbar's tools menu.
 
+If you installed the earlier, unreleased `modlist-json-exporter` plugin, delete that folder from
+MO2's `plugins/` — this plugin absorbs it, and leaving both installed shows two export entries.
+
 The zip is the supported install path. Copying the folder out of the repository by hand also
 works *if* you have run `python tools/package_plugin.py` first (the `_vendor/` copies of the
 generator modules are not committed), but you also drag along the `test_*.py` files — harmless,
@@ -64,7 +67,9 @@ Reports are named exactly like the CLI tools' directory mode:
 `md` for the changelog. A list's "name" is the JSON file's basename without extension, or —
 for the live profile — the suggested export name. So pointing the plugin at the same `output/`
 folder the CLI tools use drops the reports in the same per-target subfolders, and
-`python tools/regenerate.py "<List 2 name>"` refreshes them afterwards.
+`python tools/regenerate.py "<List 2 name>"` refreshes them afterwards — with `--lists` pointed
+at wherever the exported JSONs live, since `regenerate.py` looks in `lists/` by default while
+the plugin's live export lands in the destination folder.
 
 Coverage also honours the per-target ignore file
 `<destination>/<List 2 name>/.coverage-ignore.txt` — the same file the CLI coverage tool and its
