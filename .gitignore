@@ -6,6 +6,11 @@ lists/*
 output/*
 !output/.gitkeep
 
+# Vendored tool copies + release zips, created by tools/package_plugin.py
+mo2-plugins/modlist_compare/_vendor/*
+!mo2-plugins/modlist_compare/_vendor/__init__.py
+dist/
+
 # MO2 API reference, copied in from a separate private plugins repo for development use only.
 docs/mo2-api/
 
