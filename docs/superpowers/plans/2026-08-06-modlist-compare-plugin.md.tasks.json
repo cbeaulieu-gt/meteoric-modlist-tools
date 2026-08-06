@@ -35,7 +35,7 @@
     {
       "id": 5,
       "subject": "Task 5: GenerateReportsDialog",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         4
       ],
