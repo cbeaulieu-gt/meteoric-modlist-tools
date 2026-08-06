@@ -1,9 +1,11 @@
 """Tests for report_runner (vendors the tool modules first, no Qt/mobase)."""
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 _PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_PLUGIN_DIR))
@@ -23,6 +25,21 @@ NEW_LIST = os.path.join(EXAMPLES_LISTS, "Example List 1.1.json")
 
 def _side(path):
     return report_runner.load_side_from_file(path)
+
+
+# A rendered coverage row looks like:
+#   <div class="mod-row mod-ignored" data-names="sky idles">
+# The class list is the state-dependent part; "mod-ignored" also appears in the
+# report's inlined CSS/JS, so tests must key on this markup, not on the bare word.
+_ROW_RE = re.compile(r'<div class="mod-row ([^"]*)"[^>]*data-names="([^"]*)"')
+
+
+def _row_classes(html, mod_name):
+    """Class list of the rendered coverage row for mod_name (None if absent)."""
+    for classes, names in _ROW_RE.findall(html):
+        if mod_name.lower() in names.lower().split("\n"):
+            return classes.split()
+    return None
 
 
 class TestLoadSideFromFile(unittest.TestCase):
@@ -59,21 +76,35 @@ class TestRunReports(unittest.TestCase):
             for p in result.written:
                 self.assertTrue(os.path.getsize(p) > 0)
 
-    def test_coverage_reads_ignore_file(self):
+    def _coverage_html(self, ignored_names=None):
+        """Render coverage (1.1 vs 1.0) with an optional per-target ignore file."""
         with tempfile.TemporaryDirectory() as tmp:
-            target_dir = os.path.join(tmp, "Example List 1.0")
-            os.makedirs(target_dir)
-            with open(os.path.join(target_dir, ".coverage-ignore.txt"), "w",
-                      encoding="utf-8") as f:
-                f.write("Sky Idles\n")
+            if ignored_names is not None:
+                target_dir = os.path.join(tmp, "Example List 1.0")
+                os.makedirs(target_dir)
+                with open(os.path.join(target_dir, ".coverage-ignore.txt"), "w",
+                          encoding="utf-8") as f:
+                    f.write("\n".join(ignored_names) + "\n")
             result = report_runner.run_reports(
                 _side(NEW_LIST), _side(OLD_LIST), ["coverage"], tmp,
                 save_exports=False,
             )
             self.assertEqual(result.errors, [])
             with open(result.written[0], encoding="utf-8") as f:
-                html = f.read()
-        self.assertIn("mod-ignored", html)
+                return f.read()
+
+    def test_coverage_ignores_nothing_without_an_ignore_file(self):
+        # Baseline: Sky Idles is source-only, so it renders as an Add, not Ignored.
+        classes = _row_classes(self._coverage_html(), "Sky Idles")
+        self.assertIsNotNone(classes, "Sky Idles row missing from coverage report")
+        self.assertNotIn("mod-ignored", classes)
+
+    def test_coverage_reads_ignore_file(self):
+        html = self._coverage_html(["Sky Idles"])
+        # State-dependent: the ignored mod's own row must carry the class.
+        self.assertEqual(_row_classes(html, "Sky Idles"), ["mod-ignored"])
+        # And only that mod — a blanket class change would fail here.
+        self.assertNotIn("mod-ignored", _row_classes(html, "Timing is Everything"))
 
     def test_saves_live_export(self):
         live = _side(NEW_LIST)
@@ -85,16 +116,42 @@ class TestRunReports(unittest.TestCase):
             saved = os.path.join(tmp, "Example List 1.1.json")
             self.assertIn(saved, result.written)
             round_trip = report_runner.load_side_from_file(saved)
+            # Live sides only: the file-loaded side must NOT be re-exported.
+            not_saved = os.path.join(tmp, "Example List 1.0.json")
+            self.assertNotIn(not_saved, result.written)
+            self.assertFalse(os.path.exists(not_saved))
+            self.assertEqual(len(result.written), 2)  # changelog + one export
         self.assertEqual(round_trip.data, live.data)
+        self.assertEqual(result.errors, [])
 
-    def test_generator_failure_is_collected_not_fatal(self):
-        # An unknown report type forces one failure alongside one success.
+    def test_generator_failure_is_collected_and_later_reports_still_run(self):
+        # A real generator blows up on the FIRST requested type; the second must
+        # still be produced, proving the loop continues past a failure.
+        boom = mock.Mock(side_effect=RuntimeError("boom"))
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(report_runner.generate_coverage, "generate", boom):
+                result = report_runner.run_reports(
+                    _side(NEW_LIST), _side(OLD_LIST), ["coverage", "diff"], tmp,
+                    save_exports=False,
+                )
+            self.assertTrue(boom.called)
+            self.assertEqual(result.errors, ["coverage: boom"])
+            self.assertEqual(len(result.written), 1)
+            self.assertTrue(result.written[0].endswith(".diff.html"))
+            self.assertTrue(os.path.getsize(result.written[0]) > 0)
+            # The failed report left no partial file behind.
+            self.assertFalse(os.path.exists(os.path.join(
+                tmp, "Example List 1.0", "Example List 1.1.coverage.html")))
+
+    def test_unknown_report_type_is_collected_not_fatal(self):
+        # Bad type first, so a following good type proves loop continuation.
         with tempfile.TemporaryDirectory() as tmp:
             result = report_runner.run_reports(
-                _side(NEW_LIST), _side(OLD_LIST), ["diff", "nonsense"], tmp,
+                _side(NEW_LIST), _side(OLD_LIST), ["nonsense", "diff"], tmp,
                 save_exports=False,
             )
-        self.assertEqual(len(result.written), 1)
+            self.assertEqual(len(result.written), 1)
+            self.assertTrue(result.written[0].endswith(".diff.html"))
         self.assertEqual(len(result.errors), 1)
         self.assertIn("nonsense", result.errors[0])
 
