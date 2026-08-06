@@ -25,7 +25,7 @@
     {
       "id": 4,
       "subject": "Task 4: report_runner — run generators, write outputs",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         1,
         3
