@@ -22,6 +22,9 @@ binds because the plugin's own priority rule puts project instructions above its
 - **Every judgment call gets a one-line record** — the coordinator's own and the jarl's rulings
   alike (`judgment: <what and why>`, jarl rulings tagged `(jarl)`) — destined for review or PR
   notes.
+- **Jarl rulings surface in the wrap-up.** After a plan run, the final report — and the PR
+  description, when one is opened — includes a short **Jarl rulings** blurb: one concise line
+  per ruling (what shipped and why). Omit the section entirely if the jarl was never dispatched.
 
 ## Environment facts
 
