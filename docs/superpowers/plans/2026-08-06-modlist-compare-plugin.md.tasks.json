@@ -16,7 +16,7 @@
     {
       "id": 3,
       "subject": "Task 3: Vendoring — package script + _vendor/",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         2
       ],
