@@ -271,6 +271,13 @@ class GenerateReportsDialog(QDialog):
     def _on_cancel_clicked(self):
         self._worker.cancel_event.set()
         self._progress.setLabelText("Cancelling…")
+        # Qt connects canceled() to its own cancel() slot, which hides the
+        # dialog — re-show it so "Cancelling…" is actually visible until the
+        # worker stops at its next checkpoint.
+        self._progress.show()
+        cancel_btn = self._progress.findChild(QPushButton)
+        if cancel_btn is not None:
+            cancel_btn.setEnabled(False)
 
     def _on_progress_changed(self, percent, message):
         if self._worker.cancel_event.is_set():
