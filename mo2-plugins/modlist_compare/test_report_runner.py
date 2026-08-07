@@ -173,5 +173,44 @@ class TestRunReports(unittest.TestCase):
         self.assertIn("nonsense", result.errors[0])
 
 
+class RunReportsProgressTest(unittest.TestCase):
+    def test_progress_monotonic_labeled_and_complete(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                _side(OLD_LIST), _side(NEW_LIST), ["coverage", "changelog"], tmp,
+                save_exports=False,
+                progress=lambda fraction, message: calls.append((fraction, message)),
+            )
+        self.assertEqual(result.errors, [])
+        self.assertFalse(result.cancelled)
+        fractions = [f for f, _m in calls]
+        self.assertEqual(fractions, sorted(fractions))
+        self.assertEqual(fractions[-1], 1.0)
+        messages = {m for _f, m in calls}
+        self.assertIn("Generating coverage… (1 of 2)", messages)
+        self.assertIn("Generating changelog… (2 of 2)", messages)
+
+    def test_cancel_keeps_earlier_reports_skips_rest_and_exports(self):
+        def cancel_on_changelog(fraction, message):
+            if "changelog" in message:
+                raise report_runner.Cancelled()
+        live = report_runner.ListSide(
+            name="Live Profile", data=_side(OLD_LIST).data, live=True,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                live, _side(NEW_LIST), ["coverage", "changelog"], tmp,
+                save_exports=True, progress=cancel_on_changelog,
+            )
+            self.assertTrue(result.cancelled)
+            self.assertEqual(result.errors, [])
+            self.assertEqual(len(result.written), 1)
+            self.assertTrue(result.written[0].endswith("Live Profile.coverage.html"))
+            self.assertFalse(
+                os.path.exists(os.path.join(tmp, "Live Profile.json"))
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
