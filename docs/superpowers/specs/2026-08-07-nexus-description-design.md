@@ -69,8 +69,9 @@ Nexus fields (the "Import description" button accepts raw BBCode).
 
 ### Short description handling
 
-Treated as plain text: stripped of surrounding whitespace and written
-verbatim. The converter fails with the actual character count if it exceeds
+Treated as plain text: hard-wrapped lines are joined with single spaces
+(so the source can wrap at 80 columns) and the result is written as one
+line. The converter fails with the actual character count if it exceeds
 350 characters, and errors if the section contains any markdown or HTML
 construct from the tables below — the Nexus card renders plain text only.
 
