@@ -127,7 +127,7 @@ Raw `meta.ini` version strings are normalized to MO2 display format by `modlist_
 Run the unit tests from inside `tools/`:
 
 ```bash
-cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin -v
+cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin test_nexus_description -v
 ```
 
 The plugin's own tests (`exporter_core`, `report_runner`) run outside MO2 — no `mobase`, no Qt — from the repo root:
