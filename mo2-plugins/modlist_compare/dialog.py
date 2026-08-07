@@ -1,5 +1,6 @@
 """Generate Reports dialog for the Modlist Compare plugin."""
 import os
+import sys
 import threading
 
 from PyQt6.QtCore import Qt, QThread, QUrl, pyqtSignal
@@ -14,8 +15,9 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
-    QProgressDialog,
+    QProgressBar,
     QPushButton,
+    QVBoxLayout,
 )
 
 from . import exporter_core, report_runner
@@ -90,6 +92,15 @@ class _ReportWorker(QThread):
 
     def run(self):
         result = None
+        # A compute-bound thread makes every GIL reacquisition on the main
+        # thread wait up to the switch interval, and PyQt releases/reacquires
+        # the GIL around each C++ call — so any plugin doing Python work on
+        # the main thread (measured live: a widget-tree scan in another
+        # installed plugin) runs hundreds of times slower and freezes MO2's
+        # event loop. At 0.2ms the amplification disappears and generation
+        # itself is not measurably slower.
+        old_interval = sys.getswitchinterval()
+        sys.setswitchinterval(0.0002)
         try:
             side1, side2, report_types, dest, save_exports = self._args
             result = report_runner.run_reports(
@@ -109,6 +120,7 @@ class _ReportWorker(QThread):
             except BaseException:
                 result = None  # the finally builds a last-resort result
         finally:
+            sys.setswitchinterval(old_interval)
             if result is None:
                 result = report_runner.RunResult(
                     errors=["report generation failed unexpectedly"]
@@ -116,23 +128,54 @@ class _ReportWorker(QThread):
             self.done.emit(result)
 
 
-class _ProgressDialog(QProgressDialog):
-    """A QProgressDialog that can only be dismissed by the worker finishing.
+class _ProgressDialog(QDialog):
+    """A modal progress dialog that only the worker's finish can dismiss.
 
-    Esc (QDialog.reject) and the window's X (QDialog.closeEvent -> reject)
-    would otherwise hide the dialog while the worker is still running, and a
-    hidden window-modal dialog imposes no modality at all — which reopens
-    every race this design leans on modality to prevent. Both routes are
-    redirected to the same cancel request the Cancel button makes, and the
-    dialog stays up until _on_reports_done hides it.
+    Deliberately NOT a QProgressDialog: when modal, its setValue() pumps the
+    event loop (processEvents) from inside the caller's slot, re-entering
+    arbitrary event handlers — observed live running another plugin's
+    main-window scan for seconds from within a progress update. A plain
+    QProgressBar update has no such side channel. It also drops
+    QProgressDialog's cancel-hides-the-dialog behavior, which previously
+    needed a re-show workaround.
+
+    Esc (reject) and the window's X (closeEvent) would otherwise hide the
+    dialog while the worker is still running, and a hidden window-modal
+    dialog imposes no modality at all. Both routes are redirected to the same
+    cancel request the Cancel button makes, and the dialog stays up until
+    _on_reports_done hides it.
     """
 
-    def __init__(self, label, cancel_text, minimum, maximum, parent, on_cancel):
-        super().__init__(label, cancel_text, minimum, maximum, parent)
+    def __init__(self, parent, on_cancel):
+        super().__init__(parent)
         self._on_cancel = on_cancel
+        self.setWindowTitle(_TITLE)
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setMinimumWidth(360)
+        layout = QVBoxLayout(self)
+        self._label = QLabel("Preparing…")
+        layout.addWidget(self._label)
+        self._bar = QProgressBar()
+        self._bar.setRange(0, 100)
+        layout.addWidget(self._bar)
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+        self._cancel_btn = QPushButton("Cancel")
+        self._cancel_btn.clicked.connect(self._on_cancel)
+        buttons.addWidget(self._cancel_btn)
+        layout.addLayout(buttons)
+
+    def setLabelText(self, text):
+        self._label.setText(text)
+
+    def setValue(self, value):
+        self._bar.setValue(value)
+
+    def disable_cancel(self):
+        self._cancel_btn.setEnabled(False)
 
     def reject(self):
-        # Esc lands here without even emitting canceled().
+        # Esc lands here.
         self._on_cancel()
 
     def closeEvent(self, event):
@@ -339,15 +382,7 @@ class GenerateReportsDialog(QDialog):
             self, side1, side2, report_types, dest,
             self._save_export_box.isChecked(),
         )
-        self._progress = _ProgressDialog(
-            "Preparing…", "Cancel", 0, 100, self, self._on_cancel_clicked,
-        )
-        self._progress.setWindowTitle(_TITLE)
-        self._progress.setWindowModality(Qt.WindowModality.WindowModal)
-        self._progress.setAutoClose(False)
-        self._progress.setAutoReset(False)
-        self._progress.setMinimumDuration(0)
-        self._progress.canceled.connect(self._on_cancel_clicked)
+        self._progress = _ProgressDialog(self, self._on_cancel_clicked)
         self._worker.progress_changed.connect(self._on_progress_changed)
         self._worker.done.connect(lambda result: self._on_reports_done(result, dest))
         self._progress.show()
@@ -361,13 +396,7 @@ class GenerateReportsDialog(QDialog):
         if self._progress is None:
             return
         self._progress.setLabelText("Cancelling…")
-        # Qt connects canceled() to its own cancel() slot, which hides the
-        # dialog — re-show it so "Cancelling…" is actually visible, and so the
-        # window stays modal until the worker stops at its next checkpoint.
-        self._progress.show()
-        cancel_btn = self._progress.findChild(QPushButton)
-        if cancel_btn is not None:
-            cancel_btn.setEnabled(False)
+        self._progress.disable_cancel()
 
     def _on_progress_changed(self, percent, message):
         if self._worker is None or self._progress is None:
@@ -387,7 +416,6 @@ class GenerateReportsDialog(QDialog):
         self._worker = None
         self._progress = None
         if progress is not None:
-            progress.canceled.disconnect(self._on_cancel_clicked)
             # hide(), not close(): closeEvent is overridden to request cancel.
             progress.hide()
             progress.deleteLater()

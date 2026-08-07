@@ -21,6 +21,14 @@ works, and it can be stopped part-way.
   list goes on which side for each report, what each report type produces, and
   where the files land.
 
+### Fixed
+
+- While generation runs, the worker lowers the Python GIL switch interval so
+  other MO2 plugins' main-thread code keeps normal speed. Without this, each of
+  their Python/Qt calls stalls up to the default 5 ms interval waiting on the
+  compute thread (measured ~380× slowdown), which froze MO2's event loop — and
+  the progress bar with it — despite generation running off the UI thread.
+
 ## [1.0.0] — 2026-08-05
 
 First public release. Extracted from a private workspace where these tools were
