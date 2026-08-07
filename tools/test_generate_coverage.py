@@ -1197,6 +1197,19 @@ class GenerateProgressTest(unittest.TestCase):
         self.assertGreater(total, 0)
         self.assertEqual(done, total)
 
+    def test_base_mode_never_reports_progress(self):
+        # Base mode reuses a precomputed match on one branch and skips matching
+        # entirely on the other, so it can honour neither monotonicity nor the
+        # "ends at done == total" contract: it stays progress-free.
+        calls = []
+        old = self._load("Example List 1.0.json")
+        new = self._load("Example List 1.1.json")
+        generate_coverage.generate(
+            old, new, "Src", "Tgt", base_data=old, base_name="Base",
+            progress=lambda d, t: calls.append((d, t)),
+        )
+        self.assertEqual(calls, [])
+
 
 if __name__ == "__main__":
     unittest.main()

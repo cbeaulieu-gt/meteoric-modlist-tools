@@ -182,6 +182,10 @@ def build_report(source_data, target_data, min_confidence, ignore, base_data=Non
     appended for base-removed mods the target still carries (skipping target
     mods a still-present source mod already claims). Shared by the CLI and the
     serve-mode renderer so both build identical reports.
+
+    progress is only forwarded on the plain path: base mode never reports
+    progress, because its matching either runs here (reused below) or is skipped
+    entirely, so neither monotonicity nor the final done == total would hold.
     """
     base_changes = None
     removed_rows = []
@@ -205,7 +209,7 @@ def build_report(source_data, target_data, min_confidence, ignore, base_data=Non
             )
     rows_by_section = classify_source_mods(
         source_data, target_data, min_confidence, ignore, base_changes,
-        matched=matched, progress=progress,
+        matched=matched, progress=None if base_data is not None else progress,
     )
     if removed_rows:
         # REMOVED_SECTION is a synthetic key; a real source separator with the
