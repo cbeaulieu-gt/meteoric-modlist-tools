@@ -31,6 +31,10 @@ class _SidePicker:
     def __init__(self, on_browse):
         self.combo = QComboBox()
         self.combo.addItems([CURRENT_PROFILE, JSON_FILE])
+        self.combo.setToolTip(
+            "'Current profile' exports the active MO2 profile live; "
+            "'JSON file…' uses a previous export."
+        )
         self.path_edit = QLineEdit()
         self.path_edit.setReadOnly(True)
         self.browse_btn = QPushButton("Browse…")
@@ -187,28 +191,57 @@ class GenerateReportsDialog(QDialog):
             grid.addWidget(side.path_edit, row, 2)
             grid.addWidget(side.browse_btn, row, 3)
 
-        grid.addWidget(QLabel("Reports:"), 2, 0)
+        list_hint = QLabel(
+            "Each side is the current MO2 profile (exported live) or a saved "
+            "JSON export. Coverage: List 1 = source to pull from, List 2 = "
+            "your list. Diff / Changelog: List 1 = old, List 2 = new."
+        )
+        list_hint.setWordWrap(True)
+        list_hint.setStyleSheet("color: gray;")
+        grid.addWidget(list_hint, 2, 0, 1, 4)
+
+        grid.addWidget(QLabel("Reports:"), 3, 0)
         reports_row = QHBoxLayout()
         self._report_boxes = {}
+        tooltips = {
+            "coverage": "What List 2 is missing or has at a different version "
+                        "— what it could pull from List 1.",
+            "diff": "Side-by-side HTML of both lists' full ordering — adds, "
+                    "removes, moves, updates.",
+            "changelog": "Markdown summary of added, removed, and updated mods "
+                         "(List 1 → List 2).",
+        }
         for rtype, label in (("coverage", "Coverage"), ("diff", "Diff"),
                              ("changelog", "Changelog")):
             box = QCheckBox(label)
+            box.setToolTip(tooltips[rtype])
             self._report_boxes[rtype] = box
             reports_row.addWidget(box)
         reports_row.addStretch()
-        grid.addLayout(reports_row, 2, 1, 1, 3)
+        grid.addLayout(reports_row, 3, 1, 1, 3)
 
-        grid.addWidget(QLabel("Destination folder:"), 3, 0)
+        grid.addWidget(QLabel("Destination folder:"), 4, 0)
         self._dest_edit = QLineEdit()
         dest_btn = QPushButton("Browse…")
         dest_btn.clicked.connect(self._browse_dest)
-        grid.addWidget(self._dest_edit, 3, 1, 1, 2)
-        grid.addWidget(dest_btn, 3, 3)
+        grid.addWidget(self._dest_edit, 4, 1, 1, 2)
+        grid.addWidget(dest_btn, 4, 3)
+
+        dest_hint = QLabel("Reports are written to <folder>/<List 2>/<List 1>.<type>.")
+        # PlainText, not AutoText: Qt's rich-text heuristic reads "<folder>" as
+        # a tag and would swallow every placeholder in this line.
+        dest_hint.setTextFormat(Qt.TextFormat.PlainText)
+        dest_hint.setStyleSheet("color: gray;")
+        grid.addWidget(dest_hint, 5, 0, 1, 4)
 
         self._save_export_box = QCheckBox(
             'Save "Current profile" export as JSON'
         )
-        grid.addWidget(self._save_export_box, 4, 0, 1, 4)
+        self._save_export_box.setToolTip(
+            "Also save the live profile's export as JSON in the destination "
+            "folder, so you can reuse it later."
+        )
+        grid.addWidget(self._save_export_box, 6, 0, 1, 4)
 
         buttons = QHBoxLayout()
         generate_btn = QPushButton("Generate")
@@ -219,7 +252,7 @@ class GenerateReportsDialog(QDialog):
         buttons.addStretch()
         buttons.addWidget(generate_btn)
         buttons.addWidget(cancel_btn)
-        grid.addLayout(buttons, 5, 0, 1, 4)
+        grid.addLayout(buttons, 7, 0, 1, 4)
 
     def _browse_side(self, side):
         start = str(self._get("browse_dir", ""))
