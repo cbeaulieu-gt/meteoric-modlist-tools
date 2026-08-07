@@ -55,6 +55,14 @@ error; the other reports still run). **Open Folder** in the result dialog opens 
 All dialog settings — destination, selected report types, the save-export checkbox, the last
 browse folder — persist across MO2 restarts.
 
+While reports generate, a progress dialog shows live percent and which report is running; MO2
+stays responsive. Closing that dialog by any route — the **Cancel** button, the window's X, or
+Esc — requests cancellation; the run stops at the next checkpoint and the progress dialog closes
+itself then, leaving the Generate Reports dialog open. Reports already written stay on disk, the
+in-progress one is discarded, and live-profile JSON exports are skipped. Any report written
+before the cancel is still listed. Hover the list, report, and save-export controls for a short
+explanation of what each does; short hints also sit under the list rows and the destination row.
+
 ## Report naming and CLI interop
 
 Reports are named exactly like the CLI tools' directory mode:
