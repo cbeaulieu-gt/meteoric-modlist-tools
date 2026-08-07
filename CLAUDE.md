@@ -55,7 +55,7 @@ The reader sees the message that ends your turn — not your thinking, raw tool 
 
 ## Project Structure
 
-The three generators and `modlist_utils.py` live together in `tools/` so the scripts can import the shared module as a sibling (`from modlist_utils import ...`). `lists/` (your inputs) and `output/` (your reports) are shared by all three tools and are gitignored — only their `.gitkeep` placeholders are tracked. `examples/` ships the synthetic fixtures and their committed sample output instead, so the toolkit is runnable and testable without any real modlist data.
+The three generators and `modlist_utils.py` live together in `tools/` so the scripts can import the shared module as a sibling (`from modlist_utils import ...`); `tools/` also holds `nexus_bbcode_editor.html`, the standalone editor page for the plugin's Nexus description, which nothing imports and you open directly in a browser. `lists/` (your inputs) and `output/` (your reports) are shared by all three tools and are gitignored — only their `.gitkeep` placeholders are tracked. `examples/` ships the synthetic fixtures and their committed sample output instead, so the toolkit is runnable and testable without any real modlist data.
 
 ## JSON Format
 

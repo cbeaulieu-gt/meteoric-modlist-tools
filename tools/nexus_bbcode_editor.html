@@ -199,14 +199,17 @@ document.getElementById("bbcode-load").addEventListener("click",
   () => loadInto(bbcodeInput, updateDesc));
 
 function copyText(text, button) {
+  /* Stash the real label once, so a re-click mid-flash can't capture "Copied!". */
+  if (!button.dataset.label) button.dataset.label = button.textContent;
   const done = () => {
-    const old = button.textContent;
     button.textContent = "Copied!";
-    setTimeout(() => { button.textContent = old; }, 1200);
+    clearTimeout(button.resetTimer);
+    button.resetTimer = setTimeout(
+      () => { button.textContent = button.dataset.label; }, 1200);
   };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done);
-  } else {
+  /* Legacy path: also the landing spot for a rejected writeText (unfocused
+     document, denied permission, Firefox under file://) -- never fail silently. */
+  const fallback = () => {
     const ta = document.createElement("textarea");
     ta.value = text;
     document.body.appendChild(ta);
@@ -214,6 +217,11 @@ function copyText(text, button) {
     document.execCommand("copy");
     ta.remove();
     done();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(fallback);
+  } else {
+    fallback();
   }
 }
 
