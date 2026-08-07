@@ -1,7 +1,8 @@
 """Generate Reports dialog for the Modlist Compare plugin."""
 import os
+import threading
 
-from PyQt6.QtCore import QUrl
+from PyQt6.QtCore import Qt, QThread, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -13,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
 )
 
@@ -46,6 +48,46 @@ class _SidePicker:
 
     def path(self):
         return self.path_edit.text().strip()
+
+
+class _ReportWorker(QThread):
+    """Runs report_runner.run_reports off the UI thread.
+
+    The progress callback runs on this thread: it first honors a pending
+    cancel request by raising Cancelled, then emits progress_changed,
+    throttled to whole-percent changes so thousands of match callbacks
+    don't queue thousands of signal deliveries.
+    """
+
+    progress_changed = pyqtSignal(int, str)
+    done = pyqtSignal(object)  # RunResult (its .cancelled reflects an abort)
+
+    def __init__(self, parent, side1, side2, report_types, dest, save_exports):
+        super().__init__(parent)
+        self._args = (side1, side2, report_types, dest, save_exports)
+        self.cancel_event = threading.Event()
+        self._last_percent = -1
+
+    def _on_progress(self, fraction, message):
+        if self.cancel_event.is_set():
+            raise report_runner.Cancelled()
+        percent = max(0, min(100, int(fraction * 100)))
+        if percent != self._last_percent:
+            self._last_percent = percent
+            self.progress_changed.emit(percent, message)
+
+    def run(self):
+        side1, side2, report_types, dest, save_exports = self._args
+        try:
+            result = report_runner.run_reports(
+                side1, side2, report_types, dest,
+                save_exports=save_exports, progress=self._on_progress,
+            )
+        except Exception as e:
+            # Unexpected failure: surface through the same errors path the
+            # result box already renders.
+            result = report_runner.RunResult(errors=[str(e)])
+        self.done.emit(result)
 
 
 class GenerateReportsDialog(QDialog):
@@ -210,16 +252,53 @@ class GenerateReportsDialog(QDialog):
             return
 
         self._save_state()
-        result = report_runner.run_reports(
-            side1, side2, report_types, dest,
-            save_exports=self._save_export_box.isChecked(),
+        self._worker = _ReportWorker(
+            self, side1, side2, report_types, dest,
+            self._save_export_box.isChecked(),
         )
+        self._progress = QProgressDialog("Preparing…", "Cancel", 0, 100, self)
+        self._progress.setWindowTitle(_TITLE)
+        self._progress.setWindowModality(Qt.WindowModality.WindowModal)
+        self._progress.setAutoClose(False)
+        self._progress.setAutoReset(False)
+        self._progress.setMinimumDuration(0)
+        self._progress.canceled.connect(self._on_cancel_clicked)
+        self._worker.progress_changed.connect(self._on_progress_changed)
+        self._worker.done.connect(lambda result: self._on_reports_done(result, dest))
+        self._progress.show()
+        self._worker.start()
+
+    def _on_cancel_clicked(self):
+        self._worker.cancel_event.set()
+        self._progress.setLabelText("Cancelling…")
+
+    def _on_progress_changed(self, percent, message):
+        if self._worker.cancel_event.is_set():
+            return  # a cancel is pending; keep "Cancelling…" on screen
+        self._progress.setLabelText(message)
+        self._progress.setValue(percent)
+
+    def _on_reports_done(self, result, dest):
+        self._worker.wait()
+        # close() fires canceled; disconnect first so a normal finish doesn't
+        # route through the cancel handler.
+        self._progress.canceled.disconnect(self._on_cancel_clicked)
+        self._progress.close()
+        self._progress = None
+        self._worker = None
+        if result.cancelled:
+            if result.written:
+                self._show_result(result, dest, cancelled=True)
+            return
         self._show_result(result, dest)
         if not result.errors:
             self.accept()
 
-    def _show_result(self, result, dest):
+    def _show_result(self, result, dest, cancelled=False):
         lines = []
+        if cancelled:
+            lines.append("Generation cancelled.")
+            lines.append("")
         if result.written:
             lines.append("Written:")
             lines.extend(f"  {p}" for p in result.written)
@@ -230,7 +309,8 @@ class GenerateReportsDialog(QDialog):
         box = QMessageBox(self)
         box.setWindowTitle(_TITLE)
         box.setIcon(
-            QMessageBox.Icon.Critical if not result.written
+            QMessageBox.Icon.Warning if cancelled
+            else QMessageBox.Icon.Critical if not result.written
             else QMessageBox.Icon.Warning if result.errors
             else QMessageBox.Icon.Information
         )
