@@ -541,10 +541,16 @@ def _match_by_name(old_mod, candidates_by_strict_name, candidates, min_confidenc
     return None
 
 
-def match_mods(old_mods, new_mods, min_confidence=0.80):
+def match_mods(old_mods, new_mods, min_confidence=0.80, progress=None):
     """
     Match mods between old and new lists using waterfall strategy.
     Returns (matched_pairs, added_mods, removed_mods).
+
+    progress, when given, is called as progress(done, total) with
+    total == len(old_mods): once after the per-page phase (with the bulk
+    count of page-matched mods) and once per mod through the plugin and
+    name phases, so done climbs monotonically to total. Exceptions raised
+    by the callback propagate to the caller (cancellation relies on this).
     """
     matched = []  # list of (old_mod, new_mod)
     matched_new_ids = set()  # track which new mods have been matched (by index)
@@ -651,6 +657,11 @@ def match_mods(old_mods, new_mods, min_confidence=0.80):
 
     unmatched_old = [m for m in old_mods if id(m) not in matched_old_ids]
 
+    total = len(old_mods)
+    done = total - len(unmatched_old)
+    if progress is not None:
+        progress(done, total)
+
     # Phase 2: Plugin-based matching
     still_unmatched_old = []
     for old_mod in unmatched_old:
@@ -658,6 +669,11 @@ def match_mods(old_mods, new_mods, min_confidence=0.80):
         result = _match_by_plugins(old_mod, candidates)
         if result:
             mark_matched(old_mod, result[0])
+            # Only settled mods tick; the rest fall through to phase 3, which
+            # ticks them there, so each mod is counted exactly once overall.
+            done += 1
+            if progress is not None:
+                progress(done, total)
         else:
             still_unmatched_old.append(old_mod)
     unmatched_old = still_unmatched_old
@@ -672,6 +688,9 @@ def match_mods(old_mods, new_mods, min_confidence=0.80):
             mark_matched(old_mod, result[0])
         else:
             still_unmatched_old.append(old_mod)
+        done += 1
+        if progress is not None:
+            progress(done, total)
 
     # Remaining: unmatched old = removed, unmatched new = added
     removed = still_unmatched_old

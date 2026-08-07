@@ -868,15 +868,17 @@ def _render_mod_row(parts, row):
 # Library entry point
 # ---------------------------------------------------------------------------
 
-def generate(old_data, new_data, old_name, new_name, min_confidence=0.80):
+def generate(old_data, new_data, old_name, new_name, min_confidence=0.80,
+             progress=None):
     """Library entry point: render the side-by-side diff for loaded modlist data.
 
     Pure data-in -> HTML-out; callers own all file IO and output naming.
+    progress is forwarded to match_mods - see modlist_utils.match_mods.
     """
     old_mods = extract_mods(old_data)
     new_mods = extract_mods(new_data)
     matched_pairs, added_mods, removed_mods = match_mods(
-        old_mods, new_mods, min_confidence
+        old_mods, new_mods, min_confidence, progress=progress
     )
     old_section_order = get_separator_order(old_data)
     new_section_order = get_separator_order(new_data)

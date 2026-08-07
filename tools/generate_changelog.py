@@ -116,16 +116,18 @@ def generate_markdown(added_by_section, removed_by_section, updated, summary):
 # Library entry point
 # ---------------------------------------------------------------------------
 
-def generate(old_data, new_data, min_confidence=0.80):
+def generate(old_data, new_data, min_confidence=0.80, progress=None):
     """Library entry point: render the markdown changelog for loaded modlist data.
 
     Pure data-in -> markdown-out; callers own all file IO and output naming.
+    progress is forwarded to match_mods - see modlist_utils.match_mods.
     """
     old_mods = extract_mods(old_data)
     new_mods = extract_mods(new_data)
     old_section_order = get_separator_order(old_data)
     new_section_order = get_separator_order(new_data)
-    matched, added, removed = match_mods(old_mods, new_mods, min_confidence)
+    matched, added, removed = match_mods(old_mods, new_mods, min_confidence,
+                                         progress=progress)
     updated = classify_updates(matched)
     added_by_section = organize_by_section(added, new_section_order)
     removed_by_section = organize_by_section(removed, old_section_order)

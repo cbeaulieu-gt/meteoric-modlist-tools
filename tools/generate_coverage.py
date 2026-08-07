@@ -173,7 +173,8 @@ def build_removed_rows(removed_base_mods, target_data, min_confidence=0.80,
     return rows
 
 
-def build_report(source_data, target_data, min_confidence, ignore, base_data=None):
+def build_report(source_data, target_data, min_confidence, ignore, base_data=None,
+                 progress=None):
     """Assemble the full rows_by_section for a report.
 
     Without base_data this is exactly classify_source_mods. With it, the report
@@ -181,6 +182,10 @@ def build_report(source_data, target_data, min_confidence, ignore, base_data=Non
     appended for base-removed mods the target still carries (skipping target
     mods a still-present source mod already claims). Shared by the CLI and the
     serve-mode renderer so both build identical reports.
+
+    progress is only forwarded on the plain path: base mode never reports
+    progress, because its matching either runs here (reused below) or is skipped
+    entirely, so neither monotonicity nor the final done == total would hold.
     """
     base_changes = None
     removed_rows = []
@@ -204,7 +209,7 @@ def build_report(source_data, target_data, min_confidence, ignore, base_data=Non
             )
     rows_by_section = classify_source_mods(
         source_data, target_data, min_confidence, ignore, base_changes,
-        matched=matched,
+        matched=matched, progress=None if base_data is not None else progress,
     )
     if removed_rows:
         # REMOVED_SECTION is a synthetic key; a real source separator with the
@@ -217,7 +222,7 @@ def build_report(source_data, target_data, min_confidence, ignore, base_data=Non
 
 
 def classify_source_mods(source_data, target_data, min_confidence=0.80, ignore=None,
-                         base_changes=None, matched=None):
+                         base_changes=None, matched=None, progress=None):
     """
     Classify every source mod against the target list.
 
@@ -237,7 +242,8 @@ def classify_source_mods(source_data, target_data, min_confidence=0.80, ignore=N
     target_mods = extract_mods(target_data)
 
     if matched is None:
-        matched, _added, _removed = match_mods(source_mods, target_mods, min_confidence)
+        matched, _added, _removed = match_mods(source_mods, target_mods,
+                                               min_confidence, progress=progress)
     match_lookup = {id(s): t for s, t in matched}
 
     rows_by_section = OrderedDict()
@@ -854,15 +860,19 @@ def render_html(rows_by_section, summary, source_name, target_name,
 # ---------------------------------------------------------------------------
 
 def generate(source_data, target_data, source_name, target_name,
-             min_confidence=0.80, ignore=None, base_data=None, base_name=None):
+             min_confidence=0.80, ignore=None, base_data=None, base_name=None,
+             progress=None):
     """Library entry point: render the coverage report for loaded modlist data.
 
     Pure data-in -> HTML-out; callers own all file IO and output naming.
     ``ignore`` is a coverage_ignore.IgnoreSet or None; ``base_data``/``base_name``
     switch on base-update mode exactly like the CLI's --base.
+    progress is forwarded to match_mods (plain mode only; base mode never
+    reports progress - see build_report) - see modlist_utils.match_mods.
     """
     rows_by_section = build_report(
-        source_data, target_data, min_confidence, ignore, base_data
+        source_data, target_data, min_confidence, ignore, base_data,
+        progress=progress,
     )
     summary = compute_summary(rows_by_section)
     section_majors = map_sections_to_majors(source_data)

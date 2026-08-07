@@ -300,6 +300,37 @@ class MatchModsTest(unittest.TestCase):
         self.assertEqual(added, [])
 
 
+class MatchModsProgressTest(unittest.TestCase):
+    def test_progress_monotonic_and_complete(self):
+        old = [_mod("Alpha", id=1), _mod("Beta", id=2), _mod("Gamma")]
+        new = [_mod("Alpha", id=1), _mod("Delta")]
+        calls = []
+        match_mods(old, new, progress=lambda done, total: calls.append((done, total)))
+        self.assertTrue(calls)
+        self.assertTrue(all(total == 3 for _done, total in calls))
+        dones = [done for done, _total in calls]
+        self.assertEqual(dones, sorted(dones))
+        self.assertEqual(dones[-1], 3)
+
+    def test_progress_empty_old_list(self):
+        calls = []
+        match_mods([], [_mod("Delta")], progress=lambda d, t: calls.append((d, t)))
+        self.assertEqual(calls, [(0, 0)])
+
+    def test_progress_does_not_change_results(self):
+        old = [_mod("Alpha", id=1), _mod("Beta", id=2)]
+        new = [_mod("Alpha", id=1), _mod("Wildcat", id=3)]
+        with_cb = match_mods(old, new, progress=lambda d, t: None)
+        without = match_mods(old, new)
+        self.assertEqual(with_cb, without)
+
+    def test_progress_callback_exception_propagates(self):
+        def boom(done, total):
+            raise RuntimeError("cancelled")
+        with self.assertRaises(RuntimeError):
+            match_mods([_mod("Alpha")], [_mod("Beta")], progress=boom)
+
+
 class TestRecoverVersion(unittest.TestCase):
     def test_basic_with_epoch(self):
         self.assertEqual(

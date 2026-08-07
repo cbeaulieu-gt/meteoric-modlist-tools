@@ -49,3 +49,37 @@ complete `IPluginTool` package — `plugin_tools.py` holds the mobase-facing cla
 - No local mobase stub: plugins are tested by copying the plugin folder into MO2's
   `plugins/` directory and restarting MO2. Unit-testable logic should be kept out of
   the mobase-facing class where practical.
+
+## Threading & responsiveness lessons (learned debugging Generate Reports, 2026-08)
+
+One embedded interpreter is shared by **every** installed plugin — yours, MO2's, and
+whatever the user's modlist ships. That coupling produced all of the following:
+
+- **A worker QThread is necessary but not sufficient.** A compute-bound Python thread
+  makes every main-thread Python/Qt call wait up to the GIL switch interval (default
+  5 ms) to reacquire the GIL, and PyQt releases/reacquires the GIL around each C++
+  call — so another plugin's main-thread widget scan measured ~380× slower (30 ms →
+  17 s), starving MO2's event loop into "(Not Responding)" even though *our* code never
+  touched the main thread. Fix: `sys.setswitchinterval(0.0002)` for the duration of the
+  compute, restored in a `finally` (0.2 ms kills the amplification; 1 ms does not;
+  compute throughput is unaffected). See `_ReportWorker.run()` in
+  `modlist_compare/dialog.py`.
+- **Modal `QProgressDialog.setValue()` pumps the event loop** (`processEvents`) from
+  inside your slot, re-entering arbitrary event handlers — observed running a
+  third-party plugin's handler for 9 s nested inside our progress update, and executing
+  our own completion path inside a `setValue` frame. Use a plain `QDialog` +
+  `QProgressBar` instead; it also avoids QProgressDialog's cancel-hides-the-dialog
+  behavior and its workarounds.
+- **Test in a real modded setup, not vanilla MO2.** The freeze only manifested with the
+  user's modlist because a bundled plugin (`HideButtonsBiggieEdition.py`) rescans the
+  whole widget tree on the main thread — likely triggered by our own dialog appearing.
+  Pure-Python probes outside MO2 can exonerate your code but cannot reproduce host-app
+  interactions.
+- **Debugging an in-MO2 freeze:** instrument the installed plugin with (a) a log file in
+  `%TEMP%` stamping thread ids, (b) signal emissions vs. slot deliveries, (c) a 500 ms
+  `QTimer` heartbeat proving the event loop spins, and (d) a watchdog thread dumping the
+  main thread's stack via `sys._current_frames()` every 2 s. The watchdog names the
+  exact main-thread blocker; emission-vs-delivery gaps show whether the loop is running.
+- Already encoded in code comments but worth repeating: exceptions escaping a Qt slot
+  hit `qFatal()` and abort MO2; destroying a running `QThread` is likewise fatal — emit
+  a done signal from a `finally` and `wait()` before dropping the thread.

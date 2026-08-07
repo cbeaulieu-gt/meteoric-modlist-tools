@@ -20,6 +20,10 @@ REPORT_TYPES = ("coverage", "diff", "changelog")
 _EXTENSIONS = {"coverage": "html", "diff": "html", "changelog": "md"}
 
 
+class Cancelled(Exception):
+    """Raised by a progress callback to abort generation at a checkpoint."""
+
+
 @dataclass
 class ListSide:
     """One side of a comparison: a display name plus loaded modlist data."""
@@ -32,6 +36,7 @@ class ListSide:
 class RunResult:
     written: list = field(default_factory=list)
     errors: list = field(default_factory=list)
+    cancelled: bool = False
 
 
 def load_side_from_file(path):
@@ -44,12 +49,19 @@ def load_side_from_file(path):
 
 
 def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
-                min_confidence=0.80):
+                min_confidence=0.80, progress=None):
     """Generate the selected reports from two sides into dest_dir.
 
     Naming matches the CLI: <dest>/<list2.name>/<list1.name>.<type>.<ext>.
     Coverage reads <dest>/<list2.name>/.coverage-ignore.txt like a static run.
     Per-report failures land in RunResult.errors; the rest still run.
+
+    progress, when given, is called as progress(fraction, message): fraction
+    spans 0.0-1.0 across all selected reports (equal slice per report, since
+    each reruns the same matching), message reads "Generating <type>… (i of n)".
+    A callback that raises Cancelled aborts the run: the in-progress report
+    writes nothing, earlier reports stay, save_exports is skipped, and the
+    returned RunResult has cancelled=True.
     """
     result = RunResult()
     # resolve_output_path derives names from paths; hand it synthetic filenames
@@ -57,9 +69,19 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
     first = list1.name + ".json"
     second = list2.name + ".json"
     dest = dest_dir if dest_dir.endswith(("/", "\\")) else dest_dir + os.sep
+    count = len(report_types)
 
-    for rtype in report_types:
+    for i, rtype in enumerate(report_types):
+        message = f"Generating {rtype}… ({i + 1} of {count})"
+
+        def sub_progress(done, total, _i=i, _message=message):
+            if progress is not None and total:
+                progress((_i + done / total) / count, _message)
+
         try:
+            # Inside the try: this checkpoint is also a cancellation point.
+            if progress is not None:
+                progress(i / count, message)
             if rtype == "coverage":
                 ignore = coverage_ignore.load_ignore(
                     coverage_ignore.resolve_ignore_path(dest, second)
@@ -67,15 +89,17 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
                 text = generate_coverage.generate(
                     list1.data, list2.data, list1.name, list2.name,
                     min_confidence=min_confidence, ignore=ignore,
+                    progress=sub_progress,
                 )
             elif rtype == "diff":
                 text = generate_diff.generate(
                     list1.data, list2.data, list1.name, list2.name,
-                    min_confidence=min_confidence,
+                    min_confidence=min_confidence, progress=sub_progress,
                 )
             elif rtype == "changelog":
                 text = generate_changelog.generate(
                     list1.data, list2.data, min_confidence=min_confidence,
+                    progress=sub_progress,
                 )
             else:
                 raise ValueError(f"unknown report type: {rtype}")
@@ -85,10 +109,13 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
             with open(out_path, "w", encoding="utf-8", newline="") as f:
                 f.write(text)
             result.written.append(out_path)
+        except Cancelled:
+            result.cancelled = True
+            break
         except Exception as e:
             result.errors.append(f"{rtype}: {e}")
 
-    if save_exports:
+    if save_exports and not result.cancelled:
         for side in (list1, list2):
             if not side.live:
                 continue
