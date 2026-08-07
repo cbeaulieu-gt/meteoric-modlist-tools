@@ -83,6 +83,7 @@ The MO2 plugin that both produces the JSON exports and runs the same three gener
 
 - [`exporter_core.py`](mo2-plugins/modlist_compare/exporter_core.py) and [`report_runner.py`](mo2-plugins/modlist_compare/report_runner.py) are Qt-free, and `mobase` is only imported lazily inside `export_modlist` — so both are unit-tested outside MO2.
 - `report_runner.py` calls each generator's pure `generate(...) → str` entry function (the same one `main()` uses) and writes through `resolve_output_path`, so plugin and CLI output naming can never drift.
+- **Generate Reports…** ([`dialog.py`](mo2-plugins/modlist_compare/dialog.py)) runs generation on a worker thread behind a modal progress dialog (live percent, per-report label), so MO2 stays responsive; cancel (button, Esc, or the window's X) stops at the next checkpoint — already-written reports stay, the in-progress one is discarded, remaining live-profile exports are skipped. The dialog carries inline hints and per-control tooltips.
 - **Packaging:** run `python tools/package_plugin.py` **before testing or shipping the plugin** — it vendors the five generator modules into `_vendor/` and builds `dist/modlist-compare-<version>.zip`. `_vendor/` (except its `__init__.py`) and `dist/` are gitignored; `report_runner` imports the vendored copies, and `_vendor/__init__.py` raises a loud `ImportError` when the folder is unpopulated.
 
 ## The `examples/` smoke test

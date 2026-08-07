@@ -867,7 +867,8 @@ def generate(source_data, target_data, source_name, target_name,
     Pure data-in -> HTML-out; callers own all file IO and output naming.
     ``ignore`` is a coverage_ignore.IgnoreSet or None; ``base_data``/``base_name``
     switch on base-update mode exactly like the CLI's --base.
-    progress is forwarded to match_mods - see modlist_utils.match_mods.
+    progress is forwarded to match_mods (plain mode only; base mode never
+    reports progress - see build_report) - see modlist_utils.match_mods.
     """
     rows_by_section = build_report(
         source_data, target_data, min_confidence, ignore, base_data,

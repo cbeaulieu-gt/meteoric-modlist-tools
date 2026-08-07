@@ -405,10 +405,14 @@ class GenerateReportsDialog(QDialog):
     def reject(self):
         """Refuse to close while a worker is live.
 
-        plugin_tools drops this dialog's only reference as soon as exec()
-        returns, and destroying a running QThread is an unconditional qFatal
-        that takes MO2 with it. Cancel is requested instead; _on_reports_done
-        waits for the thread and the user can close normally after that.
+        The dialog is Qt-parented to the MO2 main window, so closing it does
+        not immediately destroy it — but it does end window modality while the
+        worker still runs, reopening every race this design leans on modality
+        to prevent, and it queues a deferred destruction that can then land on
+        a live QThread (destroying a running QThread is an unconditional
+        qFatal that takes MO2 with it). Cancel is requested instead;
+        _on_reports_done waits for the thread and the user can close normally
+        after that.
         """
         if self._worker is not None:
             self._on_cancel_clicked()

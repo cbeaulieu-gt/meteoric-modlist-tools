@@ -3,6 +3,24 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-08-06
+
+Modlist Compare plugin: **Generate Reports…** no longer freezes MO2 while it
+works, and it can be stopped part-way.
+
+### Added
+
+- **Progress dialog** for report generation — a live percent and a per-report
+  status line while the run proceeds. Generation moved to a worker thread, so
+  MO2 stays responsive instead of locking up until the last report is written.
+- **Cancellation** from any close route (the Cancel button, Esc, the window's
+  X). The run stops at its next checkpoint: reports already written stay on
+  disk, the in-progress one is discarded, and any remaining live-profile JSON
+  exports are skipped.
+- **Inline hints and tooltips** in the Generate Reports dialog, explaining which
+  list goes on which side for each report, what each report type produces, and
+  where the files land.
+
 ## [1.0.0] — 2026-08-05
 
 First public release. Extracted from a private workspace where these tools were
