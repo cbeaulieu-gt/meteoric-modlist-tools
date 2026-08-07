@@ -17,13 +17,14 @@ exporter plugin in this repo.
 
 ## How you'll use it
 
-Today, this is a set of Python scripts you run from a terminal — the terminal commands below
-are the actual entry point, not a placeholder for one. If you use Claude Code, two slash
-commands (`/regenerate` and `/serve-coverage`) already ship in `.claude/commands/` and wrap the
-scripts for you; see [Claude Code slash commands](#claude-code-slash-commands) below. Still
-planned: an MO2 plugin that runs the tools from inside MO2's own UI, and packaging the slash
-commands as an installable Claude Code plugin (for now, using them means having this repo
-cloned somewhere Claude Code can see it).
+Two ways: the Python scripts you run from a terminal — the terminal commands below are the
+actual entry point, not a placeholder for one — or the **Modlist Compare** MO2 plugin, which
+exports your active modlist and generates the same three reports from inside MO2 (see its
+[README](mo2-plugins/modlist_compare/README.md)). If you use Claude Code, two slash commands
+(`/regenerate` and `/serve-coverage`) already ship in `.claude/commands/` and wrap the scripts
+for you; see [Claude Code slash commands](#claude-code-slash-commands) below. Still planned:
+packaging the slash commands as an installable Claude Code plugin (for now, using them means
+having this repo cloned somewhere Claude Code can see it).
 
 ## Requirements
 
@@ -59,12 +60,13 @@ open that one now to see the format without running anything.
 
 **Then, on your own lists:**
 
-**1. Install the exporter plugin.** Copy `mo2-plugins/modlist-json-exporter/` into your MO2
-installation's `plugins/` folder. See its
-[README](mo2-plugins/modlist-json-exporter/README.md) for the export steps (Tools menu →
-Export Modlist to JSON) and its
-[format specification](mo2-plugins/modlist-json-exporter/FORMAT_SPECIFICATION.md) for what
-gets captured.
+**1. Install the Modlist Compare plugin.** Build it with `python tools/package_plugin.py` and
+unzip the resulting `dist/modlist-compare-<version>.zip` into your MO2 installation's `plugins/`
+folder, then restart MO2 and use Tools → Modlist Compare → Export Modlist to JSON. (The same
+submenu's *Generate Reports…* entry runs the three reports below without leaving MO2 — see the
+[plugin README](mo2-plugins/modlist_compare/README.md).) See the
+[format specification](mo2-plugins/modlist_compare/FORMAT_SPECIFICATION.md) for what gets
+captured.
 
 **2. Export two versions of your modlist** to JSON (e.g. before and after an update), then run
 the same command above against your own JSON files instead of the examples.
@@ -290,7 +292,7 @@ stricter, lower it to catch a rename the default missed.
 ## Testing
 
 ```bash
-cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_coverage_ignore test_coverage_server test_regenerate test_examples -v
+cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin -v
 ```
 
 The example lists under `examples/` double as this suite's fixtures — `test_examples.py`

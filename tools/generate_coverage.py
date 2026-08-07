@@ -850,6 +850,29 @@ def render_html(rows_by_section, summary, source_name, target_name,
 
 
 # ---------------------------------------------------------------------------
+# Library entry point
+# ---------------------------------------------------------------------------
+
+def generate(source_data, target_data, source_name, target_name,
+             min_confidence=0.80, ignore=None, base_data=None, base_name=None):
+    """Library entry point: render the coverage report for loaded modlist data.
+
+    Pure data-in -> HTML-out; callers own all file IO and output naming.
+    ``ignore`` is a coverage_ignore.IgnoreSet or None; ``base_data``/``base_name``
+    switch on base-update mode exactly like the CLI's --base.
+    """
+    rows_by_section = build_report(
+        source_data, target_data, min_confidence, ignore, base_data
+    )
+    summary = compute_summary(rows_by_section)
+    section_majors = map_sections_to_majors(source_data)
+    return render_html(
+        rows_by_section, summary, source_name, target_name, section_majors,
+        base_name=base_name,
+    )
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -929,18 +952,13 @@ def main():
         base_data = load_modlist(args.base)
         base_name = os.path.splitext(os.path.basename(args.base))[0]
 
-    rows_by_section = build_report(
-        source_data, target_data, args.min_confidence, ignore, base_data
-    )
-    summary = compute_summary(rows_by_section)
-    section_majors = map_sections_to_majors(source_data)
-
     source_name = os.path.splitext(os.path.basename(args.source))[0]
     target_name = os.path.splitext(os.path.basename(args.target))[0]
 
-    html_output = render_html(
-        rows_by_section, summary, source_name, target_name, section_majors,
-        base_name=base_name,
+    html_output = generate(
+        source_data, target_data, source_name, target_name,
+        min_confidence=args.min_confidence, ignore=ignore,
+        base_data=base_data, base_name=base_name,
     )
 
     if args.base:

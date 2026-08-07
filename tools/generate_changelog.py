@@ -1,7 +1,7 @@
 """
 Standalone changelog generator for JSON modlist exports.
 
-Compares two JSON modlist files (exported via modlist_json_exporter MO2 plugin)
+Compares two JSON modlist files (exported via the Modlist Compare MO2 plugin)
 and generates a markdown changelog showing added, removed, and updated mods.
 
 Uses a multi-strategy waterfall matching approach:
@@ -113,6 +113,31 @@ def generate_markdown(added_by_section, removed_by_section, updated, summary):
 
 
 # ---------------------------------------------------------------------------
+# Library entry point
+# ---------------------------------------------------------------------------
+
+def generate(old_data, new_data, min_confidence=0.80):
+    """Library entry point: render the markdown changelog for loaded modlist data.
+
+    Pure data-in -> markdown-out; callers own all file IO and output naming.
+    """
+    old_mods = extract_mods(old_data)
+    new_mods = extract_mods(new_data)
+    old_section_order = get_separator_order(old_data)
+    new_section_order = get_separator_order(new_data)
+    matched, added, removed = match_mods(old_mods, new_mods, min_confidence)
+    updated = classify_updates(matched)
+    added_by_section = organize_by_section(added, new_section_order)
+    removed_by_section = organize_by_section(removed, old_section_order)
+    summary = {
+        "added": len(added),
+        "removed": len(removed),
+        "updated": len(updated),
+    }
+    return generate_markdown(added_by_section, removed_by_section, updated, summary)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -139,31 +164,7 @@ def main():
     old_data = load_modlist(args.old_list)
     new_data = load_modlist(args.new_list)
 
-    old_mods = extract_mods(old_data)
-    new_mods = extract_mods(new_data)
-
-    old_section_order = get_separator_order(old_data)
-    new_section_order = get_separator_order(new_data)
-
-    # Match
-    matched, added, removed = match_mods(old_mods, new_mods, args.min_confidence)
-
-    # Classify updates
-    updated = classify_updates(matched)
-
-    # Organize by section
-    added_by_section = organize_by_section(added, new_section_order)
-    removed_by_section = organize_by_section(removed, old_section_order)
-
-    # Summary
-    summary = {
-        "added": len(added),
-        "removed": len(removed),
-        "updated": len(updated),
-    }
-
-    # Generate output
-    markdown = generate_markdown(added_by_section, removed_by_section, updated, summary)
+    markdown = generate(old_data, new_data, min_confidence=args.min_confidence)
 
     out_path = resolve_output_path(args.output, args.old_list, args.new_list, "changelog", "md")
     if out_path:

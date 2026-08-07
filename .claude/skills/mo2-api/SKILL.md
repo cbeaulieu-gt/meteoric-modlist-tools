@@ -39,8 +39,9 @@ landed in before copying a signature.
 
 ## Working examples
 
-The plugins in `mo2-plugins/` are known-good references;
-`modlist-json-exporter/modlist_json_exporter.py` is the most complete `IPluginTool`.
+The plugins in `mo2-plugins/` are known-good references; `modlist_compare/` is the most
+complete `IPluginTool` package — `plugin_tools.py` holds the mobase-facing classes,
+`exporter_core.py` the mobase-free logic, `__init__.py` the `createPlugins()` entry point.
 
 ## Constraints
 
