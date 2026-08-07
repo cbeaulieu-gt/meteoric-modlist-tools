@@ -33,6 +33,7 @@ desktop.ini
 # --- Agent tooling --------------------------------------------------------
 .superpowers/
 .claude/settings.local.json
+.claude/worktrees/
 
 # --- Misc -----------------------------------------------------------------
 *.tmp
