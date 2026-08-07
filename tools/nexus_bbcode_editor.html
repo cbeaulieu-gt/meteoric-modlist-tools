@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nexus BBCode Editor</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    margin: 0; padding: 1rem 1.5rem;
+    background: #16181c; color: #d6d8db;
+  }
+  h1 { font-size: 1.2rem; margin: 0 0 1rem; }
+  section { margin-bottom: 1.25rem; }
+  .field-header {
+    display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem;
+  }
+  .field-header label { font-weight: 600; }
+  .field-header .spacer { flex: 1; }
+  button {
+    background: #2c313a; color: #d6d8db; border: 1px solid #454c58;
+    border-radius: 4px; padding: 0.25rem 0.7rem; cursor: pointer;
+    font-size: 0.85rem;
+  }
+  button:hover { background: #3a4150; }
+  #short-count { font-variant-numeric: tabular-nums; font-size: 0.85rem; color: #8b929c; }
+  #short-count.over { color: #ff5c5c; font-weight: 700; }
+  input[type="text"], textarea {
+    width: 100%; background: #0f1114; color: #e6e8eb;
+    border: 1px solid #454c58; border-radius: 4px; padding: 0.5rem 0.6rem;
+    font-family: Consolas, monospace; font-size: 0.9rem;
+  }
+  .panes { display: flex; gap: 1rem; align-items: stretch; height: 70vh; }
+  .panes > * { flex: 1 1 50%; min-width: 0; }
+  #bbcode-input { resize: none; height: 100%; }
+  #preview {
+    overflow: auto; border: 1px solid #454c58; border-radius: 4px;
+    padding: 0.8rem 1rem; background: #1b1e24; line-height: 1.45;
+  }
+  #preview .center { text-align: center; }
+  #preview blockquote {
+    border-left: 3px solid #454c58; margin: 0.5em 0; padding: 0.3em 0.8em;
+    background: #22262d;
+  }
+  #preview img { max-width: 100%; }
+  #preview a { color: #57a8e2; }
+  #preview hr { border: none; border-top: 1px solid #454c58; }
+  #preview ul, #preview ol { margin: 0.4em 0; }
+  #preview details { margin: 0.4em 0; }
+  #preview details summary { cursor: pointer; color: #8b929c; }
+  .hint { color: #8b929c; font-size: 0.8rem; margin-top: 0.3rem; }
+</style>
+</head>
+<body>
+<h1>Nexus BBCode Editor</h1>
+
+<section>
+  <div class="field-header">
+    <label for="short-input">Short description</label>
+    <span id="short-count">0 / 350</span>
+    <span class="spacer"></span>
+    <button id="short-load">Load file&hellip;</button>
+    <button id="short-copy">Copy</button>
+  </div>
+  <input type="text" id="short-input" spellcheck="true"
+         placeholder="One line, plain text, max 350 characters">
+</section>
+
+<section>
+  <div class="field-header">
+    <label for="bbcode-input">Full description (BBCode)</label>
+    <span class="spacer"></span>
+    <button id="bbcode-load">Load file&hellip;</button>
+    <button id="bbcode-copy">Copy</button>
+    <button id="reset-draft">Reset draft</button>
+  </div>
+  <div class="panes">
+    <textarea id="bbcode-input" spellcheck="false"
+              placeholder="[size=4][b]Title[/b][/size] &hellip;"></textarea>
+    <div id="preview"></div>
+  </div>
+  <p class="hint">Preview is an approximation &mdash; Nexus's own preview is the
+  final authority. Unknown tags are shown literally. Copy the result back into
+  NEXUS_DESCRIPTION.bbcode and into Nexus's raw-BBCode editor view.</p>
+</section>
+
+<input type="file" id="file-picker" hidden>
+
+<script>
+"use strict";
+
+const SHORT_LIMIT = 350;
+const STORE_SHORT = "nexus-bbcode-short";
+const STORE_DESC = "nexus-bbcode-desc";
+
+const shortInput = document.getElementById("short-input");
+const shortCount = document.getElementById("short-count");
+const bbcodeInput = document.getElementById("bbcode-input");
+const preview = document.getElementById("preview");
+const filePicker = document.getElementById("file-picker");
+
+/* ---- BBCode -> HTML (approximate; Nexus is the authority) ---- */
+
+const SIZE_PX = { 1: 10, 2: 12, 3: 16, 4: 20, 5: 24, 6: 30 };
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+const INLINE_RULES = [
+  [/\[b\]([\s\S]*?)\[\/b\]/gi, "<strong>$1</strong>"],
+  [/\[i\]([\s\S]*?)\[\/i\]/gi, "<em>$1</em>"],
+  [/\[u\]([\s\S]*?)\[\/u\]/gi, "<u>$1</u>"],
+  [/\[s\]([\s\S]*?)\[\/s\]/gi, "<s>$1</s>"],
+  [/\[size=([1-6])\]([\s\S]*?)\[\/size\]/gi,
+    (m, n, inner) => '<span style="font-size:' + SIZE_PX[n] + 'px">' + inner + "</span>"],
+  [/\[color=(#[0-9a-f]{3,8}|[a-z]+)\]([\s\S]*?)\[\/color\]/gi,
+    '<span style="color:$1">$2</span>'],
+  [/\[font=([a-z0-9 ,-]+)\]([\s\S]*?)\[\/font\]/gi,
+    '<span style="font-family:$1">$2</span>'],
+  [/\[url=([^\]\s]+)\]([\s\S]*?)\[\/url\]/gi, '<a href="$1">$2</a>'],
+  [/\[url\]([^\[\s]+)\[\/url\]/gi, '<a href="$1">$1</a>'],
+  [/\[img\]([^\[\s]+)\[\/img\]/gi, '<img src="$1" alt="">'],
+  [/\[youtube\]([^\[\s]+)\[\/youtube\]/gi,
+    '<a href="https://www.youtube.com/watch?v=$1">&#9654; YouTube: $1</a>'],
+  [/\[center\]([\s\S]*?)\[\/center\]/gi, '<div class="center">$1</div>'],
+  [/\[quote\]([\s\S]*?)\[\/quote\]/gi, "<blockquote>$1</blockquote>"],
+  [/\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi,
+    "<details><summary>Spoiler</summary>$1</details>"],
+];
+
+function listItems(inner) {
+  const parts = inner.split(/\[\*\]/);
+  const items = parts.slice(1)
+    .map(item => "<li>" + item.replace(/\[\/\*\]/gi, "").trim() + "</li>");
+  const lead = parts[0].trim();
+  if (lead) items.unshift("<li>" + lead + "</li>");
+  return items.join("");
+}
+
+function renderBBCode(raw) {
+  let html = escapeHtml(raw);
+  /* Repeat the paired-tag pass so nested same-name tags (quote in quote)
+     resolve; bail as soon as a pass changes nothing. */
+  for (let pass = 0; pass < 5; pass++) {
+    const before = html;
+    for (const [pattern, replacement] of INLINE_RULES) {
+      html = html.replace(pattern, replacement);
+    }
+    if (html === before) break;
+  }
+  html = html.replace(/\[list=1\]([\s\S]*?)\[\/list\]/gi,
+    (m, inner) => "<ol>" + listItems(inner) + "</ol>");
+  html = html.replace(/\[list\]([\s\S]*?)\[\/list\]/gi,
+    (m, inner) => "<ul>" + listItems(inner) + "</ul>");
+  html = html.replace(/\[line\]/gi, "<hr>");
+  /* Newlines to <br>, but not straight after a block closer (double gap). */
+  html = html.replace(/(<\/(?:ul|ol|blockquote|details|div)>|<hr>)\n/g, "$1");
+  html = html.replace(/\n/g, "<br>");
+  return html;
+}
+
+/* ---- wiring ---- */
+
+function updateShort() {
+  const len = shortInput.value.length;
+  shortCount.textContent = len + " / " + SHORT_LIMIT;
+  shortCount.classList.toggle("over", len > SHORT_LIMIT);
+  localStorage.setItem(STORE_SHORT, shortInput.value);
+}
+
+function updateDesc() {
+  preview.innerHTML = renderBBCode(bbcodeInput.value);
+  localStorage.setItem(STORE_DESC, bbcodeInput.value);
+}
+
+shortInput.addEventListener("input", updateShort);
+bbcodeInput.addEventListener("input", updateDesc);
+
+function loadInto(target, after) {
+  filePicker.onchange = () => {
+    const file = filePicker.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      target.value = reader.result.replace(/\r\n/g, "\n").replace(/\n$/, "");
+      after();
+    };
+    reader.readAsText(file);
+    filePicker.value = "";
+  };
+  filePicker.click();
+}
+
+document.getElementById("short-load").addEventListener("click",
+  () => loadInto(shortInput, updateShort));
+document.getElementById("bbcode-load").addEventListener("click",
+  () => loadInto(bbcodeInput, updateDesc));
+
+function copyText(text, button) {
+  /* Stash the real label once, so a re-click mid-flash can't capture "Copied!". */
+  if (!button.dataset.label) button.dataset.label = button.textContent;
+  const done = () => {
+    button.textContent = "Copied!";
+    clearTimeout(button.resetTimer);
+    button.resetTimer = setTimeout(
+      () => { button.textContent = button.dataset.label; }, 1200);
+  };
+  /* Legacy path: also the landing spot for a rejected writeText (unfocused
+     document, denied permission, Firefox under file://) -- never fail silently. */
+  const fallback = () => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    done();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+
+document.getElementById("short-copy").addEventListener("click",
+  e => copyText(shortInput.value, e.target));
+document.getElementById("bbcode-copy").addEventListener("click",
+  e => copyText(bbcodeInput.value, e.target));
+
+document.getElementById("reset-draft").addEventListener("click", () => {
+  if (!confirm("Clear both fields and the saved draft?")) return;
+  localStorage.removeItem(STORE_SHORT);
+  localStorage.removeItem(STORE_DESC);
+  shortInput.value = "";
+  bbcodeInput.value = "";
+  updateShort();
+  updateDesc();
+});
+
+/* Restore draft on open. */
+shortInput.value = localStorage.getItem(STORE_SHORT) || "";
+bbcodeInput.value = localStorage.getItem(STORE_DESC) || "";
+updateShort();
+updateDesc();
+</script>
+</body>
+</html>

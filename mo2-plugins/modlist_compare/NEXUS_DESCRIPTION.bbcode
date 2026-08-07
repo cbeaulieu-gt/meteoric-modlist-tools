@@ -1,0 +1,36 @@
+[size=4][b]Modlist Compare[/b][/size]
+
+[b]An MO2 plugin for comparing modlists - see what another list has that yours doesn't, side by side, without leaving Mod Organizer 2.[/b]
+
+[size=3][b]What It Does[/b][/size]
+Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one exports the active profile's modlist to JSON, and one generates reports comparing any two lists - an exported JSON file, your current profile, or one of each. The reports are the same ones the [url=https://github.com/imightbemeteor/meteoric-modlist-tools]meteoric-modlist-tools[/url] command-line tools produce, from the same code, with the same file naming, so plugin output and CLI output are interchangeable.
+
+[size=3][b]Key Features[/b][/size]
+[list]
+[*][b]Coverage report[/b] - What a target list is missing or behind on compared to a source list, with per-mod states and a percent-covered badge (HTML)[/*]
+[*][b]Diff report[/b] - Both lists' full ordering side by side, colour-coded, including moves (HTML)[/*]
+[*][b]Changelog[/b] - Added, removed, and updated mods between two versions of a list (markdown)[/*]
+[*][b]Live profile support[/b] - Compare against your current profile directly, no export step needed[/*]
+[*][b]Smart matching[/b] - Mods are matched across lists by Nexus IDs, plugin files, and names, so renames and merges are handled[/*]
+[*][b]Responsive UI[/b] - Generation runs behind a progress dialog with live percent and cancel; MO2 stays responsive, not frozen[/*]
+[/list]
+
+[size=3][b]How to Use[/b][/size]
+[list=1]
+[*][b]Export a list[/b] - Tools, Modlist Compare, Export Modlist to JSON saves the active profile[/*]
+[*][b]Open Generate Reports[/b] - Pick List 1 (source/old) and List 2 (target/new): a JSON file or the current profile, with at least one side a file[/*]
+[*][b]Choose reports[/b] - Any combination of Coverage, Diff, and Changelog, plus a destination folder[/*]
+[*][b]Generate[/b] - Reports are written to the destination; Open Folder takes you straight there[/*]
+[/list]
+
+[size=3][b]Requirements[/b][/size]
+[list]
+[*]Mod Organizer 2 [b]2.5.0 or newer[/b] (the PyQt6-based Python runtime)[/*]
+[*]Nothing else - no third-party Python packages[/*]
+[/list]
+
+[size=3][b]Known Limitations[/b][/size]
+[list]
+[*]The coverage ignore list is read but not edited from the plugin; use the CLI's serve mode or a text editor to change it[/*]
+[*]Report generation vendors its modules under plain names (modlist_utils and friends); another Python plugin shipping a same-named top-level module could collide - none known[/*]
+[/list]

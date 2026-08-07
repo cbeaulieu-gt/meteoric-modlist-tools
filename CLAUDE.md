@@ -55,7 +55,7 @@ The reader sees the message that ends your turn — not your thinking, raw tool 
 
 ## Project Structure
 
-The three generators and `modlist_utils.py` live together in `tools/` so the scripts can import the shared module as a sibling (`from modlist_utils import ...`). `lists/` (your inputs) and `output/` (your reports) are shared by all three tools and are gitignored — only their `.gitkeep` placeholders are tracked. `examples/` ships the synthetic fixtures and their committed sample output instead, so the toolkit is runnable and testable without any real modlist data.
+The three generators and `modlist_utils.py` live together in `tools/` so the scripts can import the shared module as a sibling (`from modlist_utils import ...`); `tools/` also holds `nexus_bbcode_editor.html`, the standalone editor page for the plugin's Nexus description, which nothing imports and you open directly in a browser. `lists/` (your inputs) and `output/` (your reports) are shared by all three tools and are gitignored — only their `.gitkeep` placeholders are tracked. `examples/` ships the synthetic fixtures and their committed sample output instead, so the toolkit is runnable and testable without any real modlist data.
 
 ## JSON Format
 
@@ -127,7 +127,7 @@ Raw `meta.ini` version strings are normalized to MO2 display format by `modlist_
 Run the unit tests from inside `tools/`:
 
 ```bash
-cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin -v
+cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin test_nexus_description -v
 ```
 
 The plugin's own tests (`exporter_core`, `report_runner`) run outside MO2 — no `mobase`, no Qt — from the repo root:

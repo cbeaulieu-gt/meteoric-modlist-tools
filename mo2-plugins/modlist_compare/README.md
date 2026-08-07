@@ -116,6 +116,15 @@ This copies the five generator modules from `tools/` into `mo2-plugins/modlist_c
 from `VERSION = mobase.VersionInfo(...)` in `plugin_tools.py`. Both `_vendor/` and `dist/` are
 gitignored.
 
+The plugin's Nexus Mods page is maintained in the repo:
+[NEXUS_SHORT_DESCRIPTION.txt](NEXUS_SHORT_DESCRIPTION.txt) (the mod-card
+blurb — one line, max 350 characters, enforced by `test_nexus_description`)
+and [NEXUS_DESCRIPTION.bbcode](NEXUS_DESCRIPTION.bbcode) (the full
+description, raw Nexus BBCode). Open `tools/nexus_bbcode_editor.html` in a
+browser to edit with a live preview — load or paste the files, tweak, then
+copy each field back to its file and into the matching Nexus form field.
+The preview is an approximation; Nexus's own preview is the final authority.
+
 Run the plugin's tests from the repository root (they run outside MO2 — `mobase` and Qt are not
 needed):
 

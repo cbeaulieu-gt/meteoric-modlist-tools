@@ -1,0 +1,1 @@
+Compare Mod Organizer 2 modlists without leaving MO2. Export any profile to JSON, then generate coverage, diff, and changelog reports between two lists - see what a list is missing, how load orders differ, and what changed between versions. Same reports and file naming as the meteoric-modlist-tools CLI.
