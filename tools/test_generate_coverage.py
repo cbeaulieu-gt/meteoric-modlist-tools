@@ -1175,5 +1175,28 @@ class TestGenerateEntryPoint(unittest.TestCase):
             self.assertEqual(html, f.read())
 
 
+_PROGRESS_LISTS = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), os.pardir, "examples", "lists"
+)
+
+
+class GenerateProgressTest(unittest.TestCase):
+    def _load(self, name):
+        from modlist_utils import load_modlist
+        return load_modlist(os.path.join(_PROGRESS_LISTS, name))
+
+    def test_generate_forwards_progress(self):
+        calls = []
+        old = self._load("Example List 1.0.json")
+        new = self._load("Example List 1.1.json")
+        generate_coverage.generate(
+            old, new, "Src", "Tgt", progress=lambda d, t: calls.append((d, t))
+        )
+        self.assertTrue(calls)
+        done, total = calls[-1]
+        self.assertGreater(total, 0)
+        self.assertEqual(done, total)
+
+
 if __name__ == "__main__":
     unittest.main()
