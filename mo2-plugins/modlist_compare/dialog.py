@@ -55,8 +55,12 @@ class _ReportWorker(QThread):
 
     The progress callback runs on this thread: it first honors a pending
     cancel request by raising Cancelled, then emits progress_changed,
-    throttled to whole-percent changes so thousands of match callbacks
-    don't queue thousands of signal deliveries.
+    throttled to changes in (whole percent, message) so thousands of match
+    callbacks don't queue thousands of signal deliveries.
+
+    done is emitted exactly once, from a finally: the dialog it drives is
+    modal and only closes on that signal, so a thread that ended without
+    emitting would wedge the UI forever.
     """
 
     progress_changed = pyqtSignal(int, str)
@@ -66,28 +70,70 @@ class _ReportWorker(QThread):
         super().__init__(parent)
         self._args = (side1, side2, report_types, dest, save_exports)
         self.cancel_event = threading.Event()
-        self._last_percent = -1
+        self._last_emitted = None
 
     def _on_progress(self, fraction, message):
         if self.cancel_event.is_set():
             raise report_runner.Cancelled()
         percent = max(0, min(100, int(fraction * 100)))
-        if percent != self._last_percent:
-            self._last_percent = percent
+        # Throttle on (percent, message), not percent alone: consecutive
+        # reports can start on the same integer percent, and dropping those
+        # would leave a stale "Generating <type>…" label on screen.
+        current = (percent, message)
+        if current != self._last_emitted:
+            self._last_emitted = current
             self.progress_changed.emit(percent, message)
 
     def run(self):
-        side1, side2, report_types, dest, save_exports = self._args
+        result = None
         try:
+            side1, side2, report_types, dest, save_exports = self._args
             result = report_runner.run_reports(
                 side1, side2, report_types, dest,
                 save_exports=save_exports, progress=self._on_progress,
             )
-        except Exception as e:
+        except BaseException as e:
             # Unexpected failure: surface through the same errors path the
-            # result box already renders.
-            result = report_runner.RunResult(errors=[str(e)])
-        self.done.emit(result)
+            # result box already renders. BaseException, not Exception, so
+            # nothing can end this thread without a done emission. The type
+            # name is included because bare exceptions (KeyError()) str() to
+            # an empty line.
+            try:
+                result = report_runner.RunResult(
+                    errors=[f"{type(e).__name__}: {e}"]
+                )
+            except BaseException:
+                result = None  # the finally builds a last-resort result
+        finally:
+            if result is None:
+                result = report_runner.RunResult(
+                    errors=["report generation failed unexpectedly"]
+                )
+            self.done.emit(result)
+
+
+class _ProgressDialog(QProgressDialog):
+    """A QProgressDialog that can only be dismissed by the worker finishing.
+
+    Esc (QDialog.reject) and the window's X (QDialog.closeEvent -> reject)
+    would otherwise hide the dialog while the worker is still running, and a
+    hidden window-modal dialog imposes no modality at all — which reopens
+    every race this design leans on modality to prevent. Both routes are
+    redirected to the same cancel request the Cancel button makes, and the
+    dialog stays up until _on_reports_done hides it.
+    """
+
+    def __init__(self, label, cancel_text, minimum, maximum, parent, on_cancel):
+        super().__init__(label, cancel_text, minimum, maximum, parent)
+        self._on_cancel = on_cancel
+
+    def reject(self):
+        # Esc lands here without even emitting canceled().
+        self._on_cancel()
+
+    def closeEvent(self, event):
+        self._on_cancel()
+        event.ignore()
 
 
 class GenerateReportsDialog(QDialog):
@@ -95,6 +141,8 @@ class GenerateReportsDialog(QDialog):
         super().__init__(parent)
         self._organizer = organizer
         self._plugin_name = plugin_name
+        self._worker = None
+        self._progress = None
         self.setWindowTitle(_TITLE)
         self.setMinimumWidth(560)
         self._build_ui()
@@ -228,6 +276,8 @@ class GenerateReportsDialog(QDialog):
             return None
 
     def _on_generate(self):
+        if self._worker is not None:
+            return  # a run is already in flight; never overwrite its wiring
         if self._side1.is_live() and self._side2.is_live():
             self._warn("Both sides are the current profile — pick a JSON file for one side.")
             return
@@ -256,7 +306,9 @@ class GenerateReportsDialog(QDialog):
             self, side1, side2, report_types, dest,
             self._save_export_box.isChecked(),
         )
-        self._progress = QProgressDialog("Preparing…", "Cancel", 0, 100, self)
+        self._progress = _ProgressDialog(
+            "Preparing…", "Cancel", 0, 100, self, self._on_cancel_clicked,
+        )
         self._progress.setWindowTitle(_TITLE)
         self._progress.setWindowModality(Qt.WindowModality.WindowModal)
         self._progress.setAutoClose(False)
@@ -269,30 +321,44 @@ class GenerateReportsDialog(QDialog):
         self._worker.start()
 
     def _on_cancel_clicked(self):
+        """Request cancellation. Every close route funnels here; idempotent."""
+        if self._worker is None:
+            return  # already finished — a stray close route, nothing to cancel
         self._worker.cancel_event.set()
+        if self._progress is None:
+            return
         self._progress.setLabelText("Cancelling…")
         # Qt connects canceled() to its own cancel() slot, which hides the
-        # dialog — re-show it so "Cancelling…" is actually visible until the
-        # worker stops at its next checkpoint.
+        # dialog — re-show it so "Cancelling…" is actually visible, and so the
+        # window stays modal until the worker stops at its next checkpoint.
         self._progress.show()
         cancel_btn = self._progress.findChild(QPushButton)
         if cancel_btn is not None:
             cancel_btn.setEnabled(False)
 
     def _on_progress_changed(self, percent, message):
+        if self._worker is None or self._progress is None:
+            return  # a late delivery after teardown
         if self._worker.cancel_event.is_set():
             return  # a cancel is pending; keep "Cancelling…" on screen
         self._progress.setLabelText(message)
         self._progress.setValue(percent)
 
     def _on_reports_done(self, result, dest):
-        self._worker.wait()
-        # close() fires canceled; disconnect first so a normal finish doesn't
-        # route through the cancel handler.
-        self._progress.canceled.disconnect(self._on_cancel_clicked)
-        self._progress.close()
-        self._progress = None
+        worker, progress = self._worker, self._progress
+        if worker is None:
+            return  # already torn down; nothing left to do
+        worker.wait()  # the thread must be finished before it can be dropped
+        # Clear the handles first: _show_result spins a nested event loop, and
+        # every close route below checks these to decide whether a run is live.
         self._worker = None
+        self._progress = None
+        if progress is not None:
+            progress.canceled.disconnect(self._on_cancel_clicked)
+            # hide(), not close(): closeEvent is overridden to request cancel.
+            progress.hide()
+            progress.deleteLater()
+        worker.deleteLater()
         if result.cancelled:
             if result.written:
                 self._show_result(result, dest, cancelled=True)
@@ -300,6 +366,28 @@ class GenerateReportsDialog(QDialog):
         self._show_result(result, dest)
         if not result.errors:
             self.accept()
+
+    # ---- close routes ----------------------------------------------------
+
+    def reject(self):
+        """Refuse to close while a worker is live.
+
+        plugin_tools drops this dialog's only reference as soon as exec()
+        returns, and destroying a running QThread is an unconditional qFatal
+        that takes MO2 with it. Cancel is requested instead; _on_reports_done
+        waits for the thread and the user can close normally after that.
+        """
+        if self._worker is not None:
+            self._on_cancel_clicked()
+            return
+        super().reject()
+
+    def closeEvent(self, event):
+        if self._worker is not None:
+            self._on_cancel_clicked()
+            event.ignore()
+            return
+        super().closeEvent(event)
 
     def _show_result(self, result, dest, cancelled=False):
         lines = []
