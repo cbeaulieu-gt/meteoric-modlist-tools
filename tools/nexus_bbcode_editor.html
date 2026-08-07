@@ -131,9 +131,12 @@ const INLINE_RULES = [
 ];
 
 function listItems(inner) {
-  return inner.split(/\[\*\]/).slice(1)
-    .map(item => "<li>" + item.replace(/\[\/\*\]/gi, "").trim() + "</li>")
-    .join("");
+  const parts = inner.split(/\[\*\]/);
+  const items = parts.slice(1)
+    .map(item => "<li>" + item.replace(/\[\/\*\]/gi, "").trim() + "</li>");
+  const lead = parts[0].trim();
+  if (lead) items.unshift("<li>" + lead + "</li>");
+  return items.join("");
 }
 
 function renderBBCode(raw) {
