@@ -1,11 +1,18 @@
-[size=4][b]Modlist Compare[/b][/size]
+[size=4][color=#F5A623][b]Modlist Compare[/b][/color][/size]
 
 [b]An MO2 plugin for comparing modlists - see what another list has that yours doesn't, side by side, without leaving Mod Organizer 2.[/b]
 
-[size=3][b]What It Does[/b][/size]
+[size=3][color=#F5A623][b]Description[/b][/color][/size]
 Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one exports the active profile's modlist to JSON, and one generates reports comparing any two lists - an exported JSON file, your current profile, or one of each. The reports are the same ones the [url=https://github.com/imightbemeteor/meteoric-modlist-tools]meteoric-modlist-tools[/url] command-line tools produce, from the same code, with the same file naming, so plugin output and CLI output are interchangeable.
 
-[size=3][b]Key Features[/b][/size]
+[size=3][color=#F5A623][b]Installation Instructions[/b][/color][/size]
+[list=1]
+[*]Download the zip from the Files tab[/*]
+[*]Unzip it into your MO2 installation's [b]plugins/[/b] folder - the archive already contains the [b]modlist_compare/[/b] folder, so you should end up with [b]plugins/modlist_compare/[/b][/*]
+[*]Restart MO2 - [b]Tools > Modlist Compare[/b] appears in the toolbar's tools menu[/*]
+[/list]
+
+[size=3][color=#F5A623][b]Main Features[/b][/color][/size]
 [list]
 [*][b]Coverage report[/b] - What a target list is missing or behind on compared to a source list, with per-mod states and a percent-covered badge (HTML)[/*]
 [*][b]Diff report[/b] - Both lists' full ordering side by side, colour-coded, including moves (HTML)[/*]
@@ -15,7 +22,7 @@ Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one 
 [*][b]Responsive UI[/b] - Generation runs behind a progress dialog with live percent and cancel; MO2 stays responsive, not frozen[/*]
 [/list]
 
-[size=3][b]How to Use[/b][/size]
+[size=3][color=#F5A623][b]How to Use[/b][/color][/size]
 [list=1]
 [*][b]Export a list[/b] - Tools, Modlist Compare, Export Modlist to JSON saves the active profile[/*]
 [*][b]Open Generate Reports[/b] - Pick List 1 (source/old) and List 2 (target/new): a JSON file or the current profile, with at least one side a file[/*]
@@ -23,14 +30,22 @@ Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one 
 [*][b]Generate[/b] - Reports are written to the destination; Open Folder takes you straight there[/*]
 [/list]
 
-[size=3][b]Requirements[/b][/size]
+[size=3][color=#F5A623][b]Requirements[/b][/color][/size]
 [list]
 [*]Mod Organizer 2 [b]2.5.0 or newer[/b] (the PyQt6-based Python runtime)[/*]
 [*]Nothing else - no third-party Python packages[/*]
 [/list]
 
-[size=3][b]Known Limitations[/b][/size]
+[size=3][color=#F5A623][b]Known Limitations[/b][/color][/size]
 [list]
 [*]The coverage ignore list is read but not edited from the plugin; use the CLI's serve mode or a text editor to change it[/*]
 [*]Report generation vendors its modules under plain names (modlist_utils and friends); another Python plugin shipping a same-named top-level module could collide - none known[/*]
+[/list]
+
+[size=3][color=#F5A623][b]Source[/b][/color][/size]
+The plugin is open source - the code lives in the [url=https://github.com/imightbemeteor/meteoric-modlist-tools/tree/main/mo2-plugins/modlist_compare]mo2-plugins/modlist_compare[/url] folder of the meteoric-modlist-tools repository, alongside the command-line tools that share its report generators.
+
+[size=3][color=#F5A623][b]Shout Outs[/b][/color][/size]
+[list]
+[*]The [b]Mod Organizer 2[/b] team - for MO2 and its Python plugin API[/*]
 [/list]

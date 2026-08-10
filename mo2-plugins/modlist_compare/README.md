@@ -112,15 +112,16 @@ python tools/package_plugin.py
 
 This copies the five generator modules from `tools/` into `mo2-plugins/modlist_compare/_vendor/`
 (byte-identical — the plugin and the CLI run the same code) and writes
-`dist/modlist-compare-<version>.zip`, excluding `test_*.py` and `__pycache__`. The version comes
+`dist/modlist-compare-<version>.zip`, excluding `test_*.py`, `__pycache__`, and `nexus/`. The version comes
 from `VERSION = mobase.VersionInfo(...)` in `plugin_tools.py`. Both `_vendor/` and `dist/` are
 gitignored.
 
-The plugin's Nexus Mods page is maintained in the repo:
-[NEXUS_SHORT_DESCRIPTION.txt](NEXUS_SHORT_DESCRIPTION.txt) (the mod-card
-blurb — one line, max 350 characters, enforced by `test_nexus_description`)
-and [NEXUS_DESCRIPTION.bbcode](NEXUS_DESCRIPTION.bbcode) (the full
-description, raw Nexus BBCode). Open `tools/nexus_bbcode_editor.html` in a
+The plugin's Nexus Mods page is maintained in the repo under [nexus/](nexus/):
+[NEXUS_SHORT_DESCRIPTION.txt](nexus/NEXUS_SHORT_DESCRIPTION.txt) (the mod-card
+blurb — one line, max 350 characters, enforced by `test_nexus_description`),
+[NEXUS_DESCRIPTION.bbcode](nexus/NEXUS_DESCRIPTION.bbcode) (the full
+description, raw Nexus BBCode), and the page's images. None of it ships in
+the plugin zip. Open `tools/nexus_bbcode_editor.html` in a
 browser to edit with a live preview — load or paste the files, tweak, then
 copy each field back to its file and into the matching Nexus form field.
 The preview is an approximation; Nexus's own preview is the final authority.

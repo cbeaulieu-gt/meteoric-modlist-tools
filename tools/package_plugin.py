@@ -40,12 +40,12 @@ def plugin_version():
 
 
 def build_zip(dist_dir=DEFAULT_DIST_DIR):
-    """Zip the plugin folder (tests and caches excluded). Returns the zip path."""
+    """Zip the plugin folder (tests, caches, and Nexus page assets excluded)."""
     os.makedirs(dist_dir, exist_ok=True)
     zip_path = os.path.join(dist_dir, f"modlist-compare-{plugin_version()}.zip")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(PLUGIN_DIR):
-            dirs[:] = [d for d in dirs if d != "__pycache__"]
+            dirs[:] = [d for d in dirs if d not in ("__pycache__", "nexus")]
             for fn in sorted(files):
                 if fn.startswith("test_") or fn.endswith(".pyc"):
                     continue

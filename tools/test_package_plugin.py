@@ -33,6 +33,7 @@ class TestBuildZip(unittest.TestCase):
         self.assertTrue(any(n.endswith("_vendor/modlist_utils.py") for n in names))
         self.assertTrue(any(n.endswith("/plugin_tools.py") for n in names))
         self.assertFalse(any("/test_" in n or "__pycache__" in n for n in names))
+        self.assertFalse(any("/nexus/" in n for n in names))
 
 
 class TestVersionParse(unittest.TestCase):
