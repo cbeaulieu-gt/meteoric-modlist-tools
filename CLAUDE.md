@@ -69,6 +69,7 @@ All three report generators import shared logic from [modlist_utils.py](tools/mo
 - **`generate_coverage.py`** — what a **target** list is missing or behind on versus a **source**: per-mod states with glyphs, a `% covered` badge, interactive `--serve` mode (click-to-ignore), and `--base` update mode for derived lists. Design: [docs/design/2026-07-03-base-update-coverage-design.md](docs/design/2026-07-03-base-update-coverage-design.md).
 - **`generate_diff.py`** — side-by-side HTML of both lists' full ordering; the only tool that reports moves. Section matching waterfall: exact name → content-based (≥50% of an old section's matched mods landed in one new section) → fuzzy name (SequenceMatcher ≥ 0.70), all case-insensitive (see [Name Case](#name-case)).
 - **`tools/regenerate.py`** — re-runs every *existing* report that references a list (as target, source, or rebase base) by parsing report filenames back into generator arguments; reports run as parallel subprocesses (`-j/--jobs` to cap). It never creates new report combinations. Design: [docs/design/2026-06-17-regenerate-reports-design.md](docs/design/2026-06-17-regenerate-reports-design.md).
+- **`tools/release_reports.py`** — the GitHub Action's engine: pairs the two newest versioned exports in a consumer repo's `lists/`, writes `changelog/v<ver>/{changelog.md,diff.html,coverage.html}`, and splices a `## Version <ver>` skeleton into `CHANGELOG.md`. Wrapped by the root `action.yml` (composite; branch + PR via the runner's `git`/`gh`). Design: [docs/superpowers/specs/2026-08-25-release-reports-action-design.md](docs/superpowers/specs/2026-08-25-release-reports-action-design.md); the consumer-side conventions came from [docs/design/2026-08-25-nordic-souls-release-workflow.md](docs/design/2026-08-25-nordic-souls-release-workflow.md).
 
 Cross-cutting facts to know before editing:
 
@@ -127,7 +128,7 @@ Raw `meta.ini` version strings are normalized to MO2 display format by `modlist_
 Run the unit tests from inside `tools/`:
 
 ```bash
-cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin test_nexus_description -v
+cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin test_nexus_description test_release_reports -v
 ```
 
 The plugin's own tests (`exporter_core`, `report_runner`) run outside MO2 — no `mobase`, no Qt — from the repo root:

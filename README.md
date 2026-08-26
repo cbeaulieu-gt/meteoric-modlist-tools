@@ -247,6 +247,72 @@ It reparses each existing report's filename back into the arguments that produce
 only recreates combinations that already exist — it won't invent a new report pairing.
 Reports run in a rolling parallel pool (`-j/--jobs` to cap it, `-j 1` for sequential).
 
+## GitHub Action
+
+Modlist repos can run the three generators automatically: commit a new export to `lists/`
+and a pull request appears with the reports and a `CHANGELOG.md` entry skeleton.
+
+```
+<your modlist repo>/
+├── lists/                  # one modlist, one export per release (see naming below)
+├── changelog/v<ver>/       # written by the action: changelog.md, diff.html, coverage.html
+├── loadorder/v<ver>/       # optional, maintained by hand; linked from the entry when present
+└── CHANGELOG.md            # "## Contents" list + one "## Version X.Y.Z" section per release
+```
+
+**Naming.** The version is the trailing token before `.json`; everything before it is ignored, so
+the list's display name can change between releases. `lists/` must hold only one modlist's exports.
+
+| Filename | Version |
+|---|---|
+| `Meteoric 0.1.0.json` | 0.1.0 |
+| `NORDIC SOULS v3.2.0 - PBR Edition 1.6.0.json` | 1.6.0 |
+| `v2.0.2.json`, `2.0.2.json` | 2.0.2 |
+| `my-list_1.10.json` | 1.10 (sorts after 1.9) |
+| `My List.json` | ignored |
+
+The two newest versions are compared (older → newer); coverage runs with the older list as
+source. Nothing happens if `changelog/v<ver>/` already exists, so re-runs are safe.
+
+**Install** — `.github/workflows/release-reports.yml` in your repo:
+
+```yaml
+name: Release reports
+on:
+  push:
+    branches: [main]
+    paths: ['lists/*.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  reports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: imightbemeteor/meteoric-modlist-tools@v1
+        with:
+          pages-url: https://<user>.github.io/<repo>/
+```
+
+| Input | Default | Purpose |
+|---|---|---|
+| `lists` | `lists` | Export directory, relative to the repo root |
+| `pages-url` | *(empty)* | Base URL for the `.html` report links; empty = relative links |
+| `changelog-file` | `CHANGELOG.md` | File that receives the entry skeleton |
+| `token` | `${{ github.token }}` | Token used to open the PR; a PAT lets the PR trigger other workflows |
+
+**Prerequisites.** GitHub doesn't render `.html` in the repo browser, so enable Pages
+(*Settings → Pages → Deploy from a branch*, `main`, `/ (root)`) and pass the site URL as
+`pages-url`. Under *Settings → Actions → General → Workflow permissions*, choose **Read and
+write** and tick **Allow GitHub Actions to create and approve pull requests**, or `gh pr create`
+fails with 403.
+
+**The PR** (branch `modlist-reports/v<ver>`) adds the three reports and a `## Version <ver>`
+section with the Added/Removed/Updated counts, links to the reports, and two `<!-- TODO -->`
+markers — the save-safety call and the highlight prose are yours to write before merging.
+
 ## Claude Code slash commands
 
 If you use [Claude Code](https://claude.com/claude-code), two slash commands already ship in
@@ -292,7 +358,7 @@ stricter, lower it to catch a rename the default missed.
 ## Testing
 
 ```bash
-cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin test_nexus_description -v
+cd tools && python -m unittest test_modlist_utils test_generate_coverage test_generate_diff test_generate_changelog test_coverage_ignore test_coverage_server test_regenerate test_examples test_package_plugin test_nexus_description test_release_reports -v
 ```
 
 The example lists under `examples/` double as this suite's fixtures — `test_examples.py`
