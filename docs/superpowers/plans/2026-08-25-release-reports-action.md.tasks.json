@@ -4,14 +4,14 @@
     {
       "id": 1,
       "subject": "Task 1: Version parsing and list pairing",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [],
       "description": "**Goal:** `tools/release_reports.py` exists with `parse_version` and `find_pair`, covered by tests.\n\n**Files:**\n- Create: `tools/release_reports.py`\n- Create: `tools/test_release_reports.py`\n\n**Acceptance Criteria:**\n- [ ] `parse_version(\"NORDIC SOULS v3.2.0 - PBR Edition 1.6.0.json\") == ((1, 6, 0), \"1.6.0\")`; the `v3.2.0` in the base name is ignored.\n- [ ] `parse_version(\"v2.0.2.json\") == ((2, 0, 2), \"2.0.2\")`, `parse_version(\"my-list_1.10.json\") == ((1, 10), \"1.10\")`, `parse_version(\"My List.json\") is None`, `parse_version(\"notes 1.0.txt\") is None`.\n- [ ] `find_pair` on a dir with `Foo 1.9.0.json`, `Foo 1.10.0.json`, `Foo 1.2.0.json` returns `(…/Foo 1.9.0.json, …/Foo 1.10.0.json, \"1.10.0\")` (numeric order, not string order).\n- [ ] `find_pair` returns `None` with fewer than two versioned files; unversioned `.json` files are ignored.\n\n**Verify:** `cd tools && python -m unittest test_release_reports -v` → all `VersionTests`/`PairTests` pass.\n\n```json:metadata\n{\"files\": [\"tools/release_reports.py\", \"tools/test_release_reports.py\"], \"verifyCommand\": \"cd tools && python -m unittest test_release_reports -v\", \"acceptanceCriteria\": [\"parse_version handles trailing token, v-prefix, two-part, no-token, non-json\", \"find_pair sorts numerically and returns the two newest\", \"find_pair returns None with <2 versioned files\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 2,
       "subject": "Task 2: Report generation into `changelog/v<ver>/`",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         1
       ],
@@ -20,7 +20,7 @@
     {
       "id": 3,
       "subject": "Task 3: CHANGELOG.md skeleton insertion",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         2
       ],
@@ -29,7 +29,7 @@
     {
       "id": 4,
       "subject": "Task 4: CLI `main()` and end-to-end script behaviour",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         3
       ],
@@ -38,7 +38,7 @@
     {
       "id": 5,
       "subject": "Task 5: `action.yml` composite action",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         4
       ],
@@ -47,7 +47,7 @@
     {
       "id": 6,
       "subject": "Task 6: Documentation (README, CLAUDE.md, test command)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         5
       ],
@@ -72,5 +72,5 @@
       "description": "**Goal:** The starter workflow installed in `SkrubbySkrubInAShrub/nordic-souls-PBR` opens a PR whose reports match the published `changelog/v1.6.0/` modulo the refreshed 1.6.0 export.\n\n**USER-ORDERED GATE — NON-SKIPPABLE.** This task was requested by the user in the current conversation. It MUST NOT be closed by walking around it, by declaring it \"verified inline\", or by substituting a cheaper check. Close only after every item in `acceptanceCriteria` has been re-validated independently, with output captured.\n\n**Files (in the consumer repo, not this one):**\n- Create: `nordic-souls-PBR/.github/workflows/release-reports.yml` (the README starter, `pages-url: https://skrubbyskrubinashrub.github.io/nordic-souls-PBR/`)\n- Create: `nordic-souls-PBR/lists/NORDIC SOULS v3.1.1 - PBR Edition 1.5.0.json`, `… v3.2.0 - PBR Edition 1.6.0.json` (from this workspace's `lists/`)\n\n**Acceptance Criteria:**\n- [ ] Because `changelog/v1.6.0/` already exists there, the first run must be a no-op: the workflow log shows `already exists; nothing to do` and no PR is opened. (This is the idempotency check on a real repo.)\n- [ ] Then, on a branch, delete `changelog/v1.6.0/` and the `## Version 1.6.0` section's Contents line + section from `CHANGELOG.md`, push, and trigger `workflow_dispatch` on that branch: a PR `modlist-reports/v1.6.0` opens against the default branch.\n- [ ] In that PR, `changelog/v1.6.0/changelog.md` differs from the published one only in the three refreshed mods (CommunityShaders_AIO date, DynDOLOD DLL NG, Simple Follower Framework) and the `Updated` count (71 vs 69); `diff.html`/`coverage.html` likewise.\n- [ ] The PR's `CHANGELOG.md` diff adds `- [Version 1.6.0](#version-160)` first in Contents and a `## Version 1.6.0` section with the two TODO markers and Pages URLs.\n- [ ] Captured output: the workflow run URL, the PR URL, and the `diff` between the PR's `changelog.md` and the published one.\n\n**Verify:** `gh pr view <pr-url> --json files` lists exactly `changelog/v1.6.0/changelog.md`, `changelog/v1.6.0/coverage.html`, `changelog/v1.6.0/diff.html`, `CHANGELOG.md`; `gh pr diff <pr-url> -- changelog/v1.6.0/changelog.md` shows only the refreshed-mod lines.\n\n```json:metadata\n{\"files\": [], \"verifyCommand\": \"gh pr view <pr-url> --json files && gh pr diff <pr-url> -- changelog/v1.6.0/changelog.md\", \"acceptanceCriteria\": [\"first run on the live repo is a logged no-op with no PR\", \"branch run opens modlist-reports/v1.6.0 PR with exactly the four files\", \"changelog.md diff vs published limited to the three refreshed mods and the Updated count\", \"CHANGELOG.md diff adds Contents line + skeleton with TODOs and Pages URLs\", \"run URL, PR URL and diff captured\"], \"modelTier\": \"frontier\", \"userGate\": true, \"tags\": [\"user-gate\"], \"requireEvidenceTokens\": [[\"nothing to do\", \"no-op\"], [\"modlist-reports/v1.6.0\", \"pr-url\"]], \"gateScope\": \"live consumer repo\"}\n```"
     }
   ],
-  "lastUpdated": "2026-08-25T00:00:00"
+  "lastUpdated": "2026-08-26T01:00:00"
 }
