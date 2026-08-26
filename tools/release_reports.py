@@ -20,6 +20,11 @@ The composite GitHub Action at the repo root wraps this script.
 import os
 import re
 
+import generate_changelog
+import generate_coverage
+import generate_diff
+from modlist_utils import load_modlist
+
 VERSION_RE = re.compile(r"v?(\d+(?:\.\d+)*)$")
 
 
@@ -56,3 +61,38 @@ def find_pair(lists_dir):
     versioned.sort()
     (_, _, old_path), (_, new_label, new_path) = versioned[-2], versioned[-1]
     return old_path, new_path, new_label
+
+
+REPORT_NAMES = ("changelog.md", "diff.html", "coverage.html")
+
+
+def _stem(path):
+    return os.path.splitext(os.path.basename(path))[0]
+
+
+def _write(path, text):
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+
+
+def generate_reports(old_path, new_path, out_dir, min_confidence=0.80):
+    """Write changelog.md, diff.html and coverage.html for old -> new into
+    ``out_dir`` and return ``{filename: text}``.
+
+    Coverage runs with the old list as source and the new as target: what the
+    new release dropped or is behind on relative to the previous one.
+    """
+    old_data, new_data = load_modlist(old_path), load_modlist(new_path)
+    old_name, new_name = _stem(old_path), _stem(new_path)
+    texts = {
+        "changelog.md": generate_changelog.generate(
+            old_data, new_data, min_confidence=min_confidence),
+        "diff.html": generate_diff.generate(
+            old_data, new_data, old_name, new_name, min_confidence=min_confidence),
+        "coverage.html": generate_coverage.generate(
+            old_data, new_data, old_name, new_name, min_confidence=min_confidence),
+    }
+    os.makedirs(out_dir, exist_ok=True)
+    for name in REPORT_NAMES:
+        _write(os.path.join(out_dir, name), texts[name])
+    return texts

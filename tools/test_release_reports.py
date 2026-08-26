@@ -1,10 +1,20 @@
 """Tests for release_reports.py — the per-release report + CHANGELOG stub tool."""
 
+import json
 import os
 import tempfile
 import unittest
 
+import generate_changelog
+import generate_coverage
+import generate_diff
 import release_reports as rr
+
+EXAMPLES = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), os.pardir, "examples", "lists"
+)
+EX_OLD = os.path.join(EXAMPLES, "Example List 1.0.json")
+EX_NEW = os.path.join(EXAMPLES, "Example List 1.1.json")
 
 
 def _touch(directory, name, content=""):
@@ -12,6 +22,16 @@ def _touch(directory, name, content=""):
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
     return path
+
+
+def _load(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _read(path):
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        return f.read()
 
 
 class VersionTests(unittest.TestCase):
@@ -74,6 +94,37 @@ class PairTests(unittest.TestCase):
         _touch(self.dir, "Foo 1.0.json")
         _touch(self.dir, "Unversioned.json")
         self.assertIsNone(rr.find_pair(self.dir))
+
+
+class GenerateTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.out = os.path.join(self.tmp.name, "changelog", "v1.1")
+        self.texts = rr.generate_reports(EX_OLD, EX_NEW, self.out)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_writes_exactly_the_three_fixed_names(self):
+        self.assertEqual(
+            sorted(os.listdir(self.out)),
+            ["changelog.md", "coverage.html", "diff.html"],
+        )
+        self.assertEqual(set(self.texts), {"changelog.md", "coverage.html", "diff.html"})
+
+    def test_content_matches_the_generators(self):
+        old, new = _load(EX_OLD), _load(EX_NEW)
+        expected = {
+            "changelog.md": generate_changelog.generate(old, new),
+            "diff.html": generate_diff.generate(
+                old, new, "Example List 1.0", "Example List 1.1"),
+            "coverage.html": generate_coverage.generate(
+                old, new, "Example List 1.0", "Example List 1.1"),
+        }
+        for name, text in expected.items():
+            with self.subTest(report=name):
+                self.assertEqual(self.texts[name], text)
+                self.assertEqual(_read(os.path.join(self.out, name)), text)
 
 
 if __name__ == "__main__":
