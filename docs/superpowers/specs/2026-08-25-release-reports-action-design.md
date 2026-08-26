@@ -72,7 +72,9 @@ Behavior, in order:
    `v?(\d+(?:\.\d+)*)` immediately before `.json`, compared as a tuple of ints. Files without a trailing version are
    ignored with a notice. Earlier tokens in the name (e.g. the `v3.2.0` in `NORDIC SOULS v3.2.0 - PBR Edition
    1.6.0`) are not considered — the base name changes between releases, so only the trailing token identifies the
-   release.
+   release. Expected forms (all may coexist): `Meteoric 0.1.0.json` → 0.1.0; `NORDIC SOULS v3.2.0 - PBR Edition
+   1.6.0.json` → 1.6.0; `v2.0.2.json` / `2.0.2.json` → 2.0.2; `my-list_1.10.json` → 1.10 (sorts after 1.9);
+   `My List.json` → ignored.
 2. **Pair.** Newest file = new list, second-newest = old list. Fewer than two versioned files → print a notice, exit 0.
 3. **Skip if done.** If `changelog/v<ver>/` exists and `--force` is not given → print a notice, exit 0. This makes
    the script idempotent, so the trigger can be `push`, `workflow_dispatch`, or a re-run.
@@ -120,8 +122,9 @@ Exit non-zero only on real failures (unreadable JSON, generator exception, unwri
 
 ### `action.yml` (new; composite; repo root)
 
-Inputs: `lists` (default `lists`), `pages-url` (default empty), `changelog-file` (default `CHANGELOG.md`).
-Outputs: `version`, `pr-url`.
+Inputs: `lists` (default `lists`), `pages-url` (default empty), `changelog-file` (default `CHANGELOG.md`),
+`token` (default `${{ github.token }}` — the run's own `GITHUB_TOKEN`; a PAT may be substituted if the PR should
+trigger other workflows). Outputs: `version`, `pr-url`.
 
 Steps:
 
@@ -134,12 +137,16 @@ Steps:
    listing the three reports and the two TODOs to fill in. If the branch already exists remotely, the step fails
    loudly rather than force-pushing.
 
-`GITHUB_TOKEN` is used for push and `gh`. PRs opened with it do not trigger other workflows, which is fine here.
+`token` is exported as `GH_TOKEN` for `gh`; `actions/checkout` has already configured `git push` to use it. PRs
+opened with `GITHUB_TOKEN` do not trigger other workflows, which is fine here. The consumer must grant
+`permissions: contents: write, pull-requests: write` in the workflow **and** enable *Settings → Actions → General →
+Workflow permissions → Read and write* plus *Allow GitHub Actions to create and approve pull requests*, or
+`gh pr create` fails with 403.
 
 ### README section (new)
 
-"GitHub Action": the consumer contract above, the starter workflow, the inputs, the Pages prerequisite, and what
-the PR contains. Also a line in CLAUDE.md's tool list pointing at `release_reports.py` and `action.yml`.
+"GitHub Action": the consumer contract above, the filename/version table, the starter workflow, the inputs, the
+prerequisites (Pages from branch; Actions workflow-permissions settings), and what the PR contains. Also a line in CLAUDE.md's tool list pointing at `release_reports.py` and `action.yml`.
 
 ## Error handling
 
