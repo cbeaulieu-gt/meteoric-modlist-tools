@@ -49,7 +49,11 @@ def parse_version(filename):
 
 def find_pair(lists_dir):
     """Return ``(old_path, new_path, new_label)`` for the two newest versioned
-    lists in ``lists_dir``, or None when there are fewer than two."""
+    lists in ``lists_dir``, or None when there are fewer than two.
+
+    ValueError if two files parse to the same version — which of them is the
+    release is unknowable, so the run fails rather than guessing.
+    """
     versioned = []
     for name in sorted(os.listdir(lists_dir)):
         parsed = parse_version(name)
@@ -58,9 +62,15 @@ def find_pair(lists_dir):
                 print(f"Ignoring {name}: no trailing version token")
             continue
         versioned.append((parsed[0], parsed[1], os.path.join(lists_dir, name)))
+    versioned.sort()
+    for (before, _, before_path), (version, _, path) in zip(versioned, versioned[1:]):
+        if before == version:
+            raise ValueError(
+                f"Two lists in {lists_dir} share version "
+                f"{'.'.join(str(part) for part in version)}: "
+                f"{os.path.basename(before_path)} and {os.path.basename(path)}")
     if len(versioned) < 2:
         return None
-    versioned.sort()
     (_, _, old_path), (_, new_label, new_path) = versioned[-2], versioned[-1]
     return old_path, new_path, new_label
 
@@ -82,7 +92,9 @@ def generate_reports(old_path, new_path, out_dir, min_confidence=0.80):
     ``out_dir`` and return ``{filename: text}``.
 
     Coverage runs with the old list as source and the new as target: what the
-    new release dropped or is behind on relative to the previous one.
+    new release dropped or is behind on relative to the previous one. Any
+    ``.coverage-ignore.txt`` is deliberately ignored — a release report is
+    reproducible from the two exports alone.
     """
     old_data, new_data = load_modlist(old_path), load_modlist(new_path)
     old_name, new_name = _stem(old_path), _stem(new_path)
@@ -244,9 +256,15 @@ def main(argv=None):
 
     changelog_path = _resolve(repo, args.changelog_file)
     existing = ""
+    crlf = False
     if os.path.exists(changelog_path):
-        with open(changelog_path, "r", encoding="utf-8") as f:
+        with open(changelog_path, "r", encoding="utf-8", newline="") as f:
             existing = f.read()
+        # Keep the file's own line terminator so a CRLF changelog's diff shows
+        # only the inserted lines instead of every line rewritten to LF.
+        crlf = "\r\n" in existing
+        if crlf:
+            existing = existing.replace("\r\n", "\n")
     has_loadorder = os.path.isdir(os.path.join(repo, "loadorder", f"v{version}"))
     entry = render_entry(version, parse_counts(texts["changelog.md"]),
                          args.pages_url, has_loadorder)
@@ -254,7 +272,7 @@ def main(argv=None):
     if updated is None:
         print(f"{changelog_path} already has a 'Version {version}' section; left untouched")
     else:
-        _write(changelog_path, updated)
+        _write(changelog_path, updated.replace("\n", "\r\n") if crlf else updated)
         print(f"Inserted 'Version {version}' skeleton into {changelog_path}")
     write_github_output(version)
     return 0

@@ -145,6 +145,14 @@ class PairTests(unittest.TestCase):
         _touch(self.dir, "Unversioned.json")
         self.assertIsNone(rr.find_pair(self.dir))
 
+    def test_duplicate_version_is_an_error(self):
+        _touch(self.dir, "Foo 1.6.0.json")
+        _touch(self.dir, "Foo v1.6.0.json")
+        with self.assertRaises(ValueError) as caught:
+            rr.find_pair(self.dir)
+        self.assertIn("Foo 1.6.0.json", str(caught.exception))
+        self.assertIn("Foo v1.6.0.json", str(caught.exception))
+
 
 class GenerateTests(unittest.TestCase):
     def setUp(self):
@@ -313,6 +321,25 @@ class MainTests(unittest.TestCase):
         os.makedirs(os.path.join(self.repo, "loadorder", "v1.1"))
         self._run()
         self.assertIn("[Load order](loadorder/v1.1/)", _read(os.path.join(self.repo, "CHANGELOG.md")))
+
+    def test_crlf_changelog_keeps_its_terminator(self):
+        path = os.path.join(self.repo, "CHANGELOG.md")
+        seeded = ["## Contents", "", "- [Version 1.0](#version-10)", "",
+                  "## Version 1.0", "", "Old stuff", ""]
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write("\r\n".join(seeded))
+
+        self.assertEqual(self._run(), 0)
+
+        after = _read(path)
+        self.assertEqual(after.count("\n"), after.count("\r\n"))  # no bare LF left
+        self.assertIn("## Version 1.1\r\n", after)
+        self.assertIn("- [Version 1.1](#version-11)\r\n", after)
+        # Seeded lines survive byte-for-byte and in order: lines were only added.
+        rest = after.split("\r\n")
+        for line in seeded:
+            self.assertIn(line, rest)
+            rest = rest[rest.index(line) + 1:]
 
     def test_custom_lists_and_changelog_paths(self):
         os.rename(os.path.join(self.repo, "lists"), os.path.join(self.repo, "exports"))

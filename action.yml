@@ -18,8 +18,10 @@ inputs:
     default: CHANGELOG.md
   token:
     description: >-
-      Token used to push the branch and open the PR. Defaults to the run's
-      GITHUB_TOKEN; pass a PAT if the PR should trigger other workflows.
+      Token used to open the pull request. Defaults to the run's GITHUB_TOKEN;
+      pass a PAT if the PR should trigger other workflows. The branch push uses
+      the credentials actions/checkout persisted, so keep `persist-credentials`
+      at its default.
     default: ${{ github.token }}
 
 outputs:
@@ -35,12 +37,16 @@ runs:
   steps:
     - id: generate
       shell: bash
+      env:
+        LISTS: ${{ inputs.lists }}
+        PAGES_URL: ${{ inputs.pages-url }}
+        CHANGELOG_FILE: ${{ inputs.changelog-file }}
       run: |
         python3 "${{ github.action_path }}/tools/release_reports.py" \
           --repo . \
-          --lists "${{ inputs.lists }}" \
-          --pages-url "${{ inputs.pages-url }}" \
-          --changelog-file "${{ inputs.changelog-file }}"
+          --lists "$LISTS" \
+          --pages-url "$PAGES_URL" \
+          --changelog-file "$CHANGELOG_FILE"
 
     - id: pr
       if: steps.generate.outputs.version != ''
