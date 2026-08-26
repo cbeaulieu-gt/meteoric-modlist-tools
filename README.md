@@ -272,7 +272,8 @@ the list's display name can change between releases. `lists/` must hold only one
 | `My List.json` | ignored |
 
 The two newest versions are compared (older → newer); coverage runs with the older list as
-source. Nothing happens if `changelog/v<ver>/` already exists, so re-runs are safe.
+source. The first export has nothing to compare against, and a version whose
+`changelog/v<ver>/` folder already exists is skipped — neither opens a PR, so re-runs are safe.
 
 **Install** — `.github/workflows/release-reports.yml` in your repo:
 
@@ -307,7 +308,8 @@ jobs:
 (*Settings → Pages → Deploy from a branch*, `main`, `/ (root)`) and pass the site URL as
 `pages-url`. Under *Settings → Actions → General → Workflow permissions*, choose **Read and
 write** and tick **Allow GitHub Actions to create and approve pull requests**, or `gh pr create`
-fails with 403.
+fails with 403. The branch push uses the credentials `actions/checkout` persisted, so keep its
+`persist-credentials` at the default.
 
 **The PR** (branch `modlist-reports/v<ver>`) adds the three reports and a `## Version <ver>`
 section with the Added/Removed/Updated counts, links to the reports, and two `<!-- TODO -->`
