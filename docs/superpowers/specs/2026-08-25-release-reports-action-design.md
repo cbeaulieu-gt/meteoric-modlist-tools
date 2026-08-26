@@ -3,7 +3,7 @@
 A composite GitHub Action, published from this repo, that a modlist repo installs so that committing a new
 modlist JSON export automatically produces the per-release reports and a `CHANGELOG.md` entry skeleton, delivered
 as a pull request. Reference consumer: `SkrubbySkrubInAShrub/nordic-souls-PBR`. The manual process it replaces is
-described in [RELEASE-CHANGELOG-WORKFLOW.md](../../../RELEASE-CHANGELOG-WORKFLOW.md).
+described in [docs/design/2026-08-25-nordic-souls-release-workflow.md](../../design/2026-08-25-nordic-souls-release-workflow.md).
 
 ## Goals
 
