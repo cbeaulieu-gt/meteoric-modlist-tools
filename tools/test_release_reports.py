@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -250,6 +251,76 @@ Old stuff
 
     def test_anchor_drops_dots(self):
         self.assertEqual(rr.anchor("1.10.2"), "version-1102")
+
+
+class MainTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = self.tmp.name
+        lists = os.path.join(self.repo, "lists")
+        os.makedirs(lists)
+        shutil.copy(EX_OLD, lists)
+        shutil.copy(EX_NEW, lists)
+        self.gh_out = os.path.join(self.repo, "gh_output.txt")
+        os.environ["GITHUB_OUTPUT"] = self.gh_out
+
+    def tearDown(self):
+        os.environ.pop("GITHUB_OUTPUT", None)
+        self.tmp.cleanup()
+
+    def _run(self, *extra):
+        return rr.main(["--repo", self.repo, "--pages-url", "https://x/", *extra])
+
+    def _gh_output(self):
+        return _read(self.gh_out)
+
+    def test_first_run_generates_everything(self):
+        self.assertEqual(self._run(), 0)
+        out = os.path.join(self.repo, "changelog", "v1.1")
+        self.assertEqual(sorted(os.listdir(out)), ["changelog.md", "coverage.html", "diff.html"])
+        changelog = _read(os.path.join(self.repo, "CHANGELOG.md"))
+        self.assertIn("## Version 1.1\n", changelog)
+        self.assertIn("- [Version 1.1](#version-11)", changelog)
+        self.assertIn("https://x/changelog/v1.1/diff.html", changelog)
+        self.assertNotIn("Load order", changelog)
+        self.assertEqual(self._gh_output(), "version=1.1\n")
+
+    def test_second_run_is_a_noop(self):
+        self._run()
+        before = _read(os.path.join(self.repo, "CHANGELOG.md"))
+        self.assertEqual(self._run(), 0)
+        self.assertEqual(_read(os.path.join(self.repo, "CHANGELOG.md")), before)
+        self.assertEqual(self._gh_output(), "version=1.1\nversion=\n")
+
+    def test_force_regenerates_reports_but_not_the_entry(self):
+        self._run()
+        report = os.path.join(self.repo, "changelog", "v1.1", "diff.html")
+        _touch(os.path.join(self.repo, "changelog", "v1.1"), "diff.html", "stale")
+        before = _read(os.path.join(self.repo, "CHANGELOG.md"))
+        self.assertEqual(self._run("--force"), 0)
+        self.assertNotEqual(_read(report), "stale")
+        self.assertEqual(_read(os.path.join(self.repo, "CHANGELOG.md")), before)
+        self.assertEqual(self._gh_output(), "version=1.1\nversion=1.1\n")
+
+    def test_single_list_is_a_noop(self):
+        os.remove(os.path.join(self.repo, "lists", "Example List 1.0.json"))
+        self.assertEqual(self._run(), 0)
+        self.assertFalse(os.path.exists(os.path.join(self.repo, "changelog")))
+        self.assertFalse(os.path.exists(os.path.join(self.repo, "CHANGELOG.md")))
+        self.assertEqual(self._gh_output(), "version=\n")
+
+    def test_load_order_line_when_folder_exists(self):
+        os.makedirs(os.path.join(self.repo, "loadorder", "v1.1"))
+        self._run()
+        self.assertIn("[Load order](loadorder/v1.1/)", _read(os.path.join(self.repo, "CHANGELOG.md")))
+
+    def test_custom_lists_and_changelog_paths(self):
+        os.rename(os.path.join(self.repo, "lists"), os.path.join(self.repo, "exports"))
+        rc = rr.main(["--repo", self.repo, "--lists", "exports", "--changelog-file", "HISTORY.md"])
+        self.assertEqual(rc, 0)
+        self.assertTrue(os.path.exists(os.path.join(self.repo, "HISTORY.md")))
+        self.assertIn("[Diff report](changelog/v1.1/diff.html)",
+                      _read(os.path.join(self.repo, "HISTORY.md")))
 
 
 if __name__ == "__main__":

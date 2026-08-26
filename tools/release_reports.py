@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the per-release reports for a modlist repo and stub its CHANGELOG entry.
+r"""Generate the per-release reports for a modlist repo and stub its CHANGELOG entry.
 
 Finds the two newest versioned exports in ``lists/`` (version = the trailing
 ``1.6.0``-style token before ``.json``; the rest of the name is ignored), writes
@@ -17,8 +17,10 @@ Usage::
 The composite GitHub Action at the repo root wraps this script.
 """
 
+import argparse
 import os
 import re
+import sys
 
 import generate_changelog
 import generate_coverage
@@ -190,3 +192,73 @@ def insert_entry(text, version, entry):
         insert = [""] + insert
     lines[j:j] = insert
     return "\n".join(lines) + "\n"
+
+
+def write_github_output(version):
+    """Append ``version=<version>`` to $GITHUB_OUTPUT when running in Actions."""
+    path = os.environ.get("GITHUB_OUTPUT")
+    if path:
+        with open(path, "a", encoding="utf-8", newline="\n") as f:
+            f.write(f"version={version}\n")
+
+
+def _resolve(repo, path):
+    return path if os.path.isabs(path) else os.path.join(repo, path)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Generate changelog/diff/coverage for the newest modlist export "
+                    "into changelog/v<ver>/ and stub the CHANGELOG.md entry.")
+    parser.add_argument("--repo", default=".", help="Consumer repo root (default: .)")
+    parser.add_argument("--lists", default="lists",
+                        help="Directory of versioned list exports, relative to --repo (default: lists)")
+    parser.add_argument("--pages-url", default="",
+                        help="GitHub Pages base URL for .html links; omit for relative links")
+    parser.add_argument("--changelog-file", default="CHANGELOG.md",
+                        help="Changelog to insert the entry into, relative to --repo")
+    parser.add_argument("--min-confidence", type=float, default=0.80,
+                        help="Minimum confidence for fuzzy name matching (default: 0.80)")
+    parser.add_argument("--force", action="store_true",
+                        help="Regenerate reports even if changelog/v<ver>/ exists")
+    args = parser.parse_args(argv)
+
+    repo = os.path.abspath(args.repo)
+    lists_dir = _resolve(repo, args.lists)
+    pair = find_pair(lists_dir)
+    if pair is None:
+        print(f"Fewer than two versioned lists in {lists_dir}; nothing to do.")
+        write_github_output("")
+        return 0
+    old_path, new_path, version = pair
+    out_dir = os.path.join(repo, "changelog", f"v{version}")
+    if os.path.isdir(out_dir) and not args.force:
+        print(f"{out_dir} already exists; nothing to do (use --force to regenerate).")
+        write_github_output("")
+        return 0
+
+    print(f"Comparing {os.path.basename(old_path)} -> {os.path.basename(new_path)}")
+    texts = generate_reports(old_path, new_path, out_dir, args.min_confidence)
+    for name in REPORT_NAMES:
+        print(f"Wrote {os.path.join(out_dir, name)}")
+
+    changelog_path = _resolve(repo, args.changelog_file)
+    existing = ""
+    if os.path.exists(changelog_path):
+        with open(changelog_path, "r", encoding="utf-8") as f:
+            existing = f.read()
+    has_loadorder = os.path.isdir(os.path.join(repo, "loadorder", f"v{version}"))
+    entry = render_entry(version, parse_counts(texts["changelog.md"]),
+                         args.pages_url, has_loadorder)
+    updated = insert_entry(existing, version, entry)
+    if updated is None:
+        print(f"{changelog_path} already has a 'Version {version}' section; left untouched")
+    else:
+        _write(changelog_path, updated)
+        print(f"Inserted 'Version {version}' skeleton into {changelog_path}")
+    write_github_output(version)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
