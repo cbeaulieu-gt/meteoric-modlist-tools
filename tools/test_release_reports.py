@@ -145,13 +145,25 @@ class PairTests(unittest.TestCase):
         _touch(self.dir, "Unversioned.json")
         self.assertIsNone(rr.find_pair(self.dir))
 
-    def test_duplicate_version_is_an_error(self):
+    def test_duplicate_newest_version_is_an_error(self):
+        _touch(self.dir, "Foo 1.5.0.json")
         _touch(self.dir, "Foo 1.6.0.json")
         _touch(self.dir, "Foo v1.6.0.json")
         with self.assertRaises(ValueError) as caught:
             rr.find_pair(self.dir)
-        self.assertIn("Foo 1.6.0.json", str(caught.exception))
-        self.assertIn("Foo v1.6.0.json", str(caught.exception))
+        message = str(caught.exception)
+        self.assertIn("1.6.0", message)
+        self.assertIn("Foo 1.6.0.json", message)
+        self.assertIn("Foo v1.6.0.json", message)
+
+    def test_duplicate_older_version_still_pairs(self):
+        _touch(self.dir, "Foo 1.5.0.json")
+        _touch(self.dir, "Foo v1.5.0.json")
+        _touch(self.dir, "Foo 1.6.0.json")
+        old, new, label = rr.find_pair(self.dir)
+        self.assertIn(os.path.basename(old), ("Foo 1.5.0.json", "Foo v1.5.0.json"))
+        self.assertEqual(os.path.basename(new), "Foo 1.6.0.json")
+        self.assertEqual(label, "1.6.0")
 
 
 class GenerateTests(unittest.TestCase):

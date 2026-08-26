@@ -51,8 +51,9 @@ def find_pair(lists_dir):
     """Return ``(old_path, new_path, new_label)`` for the two newest versioned
     lists in ``lists_dir``, or None when there are fewer than two.
 
-    ValueError if two files parse to the same version — which of them is the
-    release is unknowable, so the run fails rather than guessing.
+    ValueError if the newest version is claimed by two files — which of them is
+    the release is unknowable, so the run fails rather than guessing. A duplicate
+    of an *older* version is harmless and does not raise.
     """
     versioned = []
     for name in sorted(os.listdir(lists_dir)):
@@ -62,16 +63,14 @@ def find_pair(lists_dir):
                 print(f"Ignoring {name}: no trailing version token")
             continue
         versioned.append((parsed[0], parsed[1], os.path.join(lists_dir, name)))
-    versioned.sort()
-    for (before, _, before_path), (version, _, path) in zip(versioned, versioned[1:]):
-        if before == version:
-            raise ValueError(
-                f"Two lists in {lists_dir} share version "
-                f"{'.'.join(str(part) for part in version)}: "
-                f"{os.path.basename(before_path)} and {os.path.basename(path)}")
     if len(versioned) < 2:
         return None
-    (_, _, old_path), (_, new_label, new_path) = versioned[-2], versioned[-1]
+    versioned.sort()
+    (old_version, _, old_path), (new_version, new_label, new_path) = versioned[-2], versioned[-1]
+    if old_version == new_version:
+        raise ValueError(
+            f"Two lists in {lists_dir} share the newest version {new_label}: "
+            f"{os.path.basename(old_path)} and {os.path.basename(new_path)}")
     return old_path, new_path, new_label
 
 
