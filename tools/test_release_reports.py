@@ -16,6 +16,55 @@ EXAMPLES = os.path.join(
 EX_OLD = os.path.join(EXAMPLES, "Example List 1.0.json")
 EX_NEW = os.path.join(EXAMPLES, "Example List 1.1.json")
 
+GEN_CHANGELOG = """# Modlist Changelog
+
+### Summary
+
+- **Added:** 41 mods
+- **Removed:** 20 mods
+- **Updated:** 69 mods
+
+## Added Mods
+"""
+
+EXISTING = """![Banner](x.png)
+
+## Contents
+
+- [Version 1.6.0](#version-160)
+- [Version 1.5.0](#version-150)
+
+## Version 1.6.0
+
+**This update is probably not save-safe.**
+
+### Summary
+- **Added:** 41 mods
+
+## Version 1.5.0
+
+Old stuff
+"""
+
+ENTRY_170 = """## Version 1.7.0
+
+**This update is <!-- TODO: save-safe / probably not save-safe / not save-safe -->.**
+
+<!-- TODO: write highlights (### Category / - bullet sections) -->
+
+### Summary
+- **Added:** 3 mods
+- **Removed:** 2 mods
+- **Updated:** 1 mods
+
+### Detailed Reports
+- [Full changelog](changelog/v1.7.0/changelog.md) — complete added/removed/updated mod lists
+- [Diff report](https://x.github.io/r/changelog/v1.7.0/diff.html) — full modlist diff
+- [Coverage report](https://x.github.io/r/changelog/v1.7.0/coverage.html) — coverage details
+"""
+
+COUNTS_170 = {"Added": 3, "Removed": 2, "Updated": 1}
+
 
 def _touch(directory, name, content=""):
     path = os.path.join(directory, name)
@@ -125,6 +174,82 @@ class GenerateTests(unittest.TestCase):
             with self.subTest(report=name):
                 self.assertEqual(self.texts[name], text)
                 self.assertEqual(_read(os.path.join(self.out, name)), text)
+
+
+class ChangelogTests(unittest.TestCase):
+    def test_parse_counts(self):
+        self.assertEqual(rr.parse_counts(GEN_CHANGELOG),
+                         {"Added": 41, "Removed": 20, "Updated": 69})
+
+    def test_parse_counts_requires_all_three(self):
+        with self.assertRaises(ValueError):
+            rr.parse_counts("- **Added:** 1 mods\n- **Removed:** 1 mods\n")
+
+    def test_render_entry_with_pages_url(self):
+        self.assertEqual(
+            rr.render_entry("1.7.0", COUNTS_170, "https://x.github.io/r/", False),
+            ENTRY_170,
+        )
+
+    def test_render_entry_adds_trailing_slash_to_pages_url(self):
+        self.assertEqual(
+            rr.render_entry("1.7.0", COUNTS_170, "https://x.github.io/r", False),
+            ENTRY_170,
+        )
+
+    def test_render_entry_relative_links_without_pages_url(self):
+        text = rr.render_entry("1.7.0", COUNTS_170, "", False)
+        self.assertIn("[Diff report](changelog/v1.7.0/diff.html)", text)
+        self.assertIn("[Coverage report](changelog/v1.7.0/coverage.html)", text)
+        self.assertNotIn("http", text)
+
+    def test_render_entry_load_order_line(self):
+        text = rr.render_entry("1.7.0", COUNTS_170, "", True)
+        self.assertTrue(text.endswith(
+            "- [Load order](loadorder/v1.7.0/) — load order, modlist, plugin groups, and plugins files\n"))
+
+    def test_insert_into_existing_changelog(self):
+        out = rr.insert_entry(EXISTING, "1.7.0", ENTRY_170)
+        self.assertEqual(out, """![Banner](x.png)
+
+## Contents
+
+- [Version 1.7.0](#version-170)
+- [Version 1.6.0](#version-160)
+- [Version 1.5.0](#version-150)
+
+""" + ENTRY_170 + """
+## Version 1.6.0
+
+**This update is probably not save-safe.**
+
+### Summary
+- **Added:** 41 mods
+
+## Version 1.5.0
+
+Old stuff
+""")
+
+    def test_insert_is_noop_when_section_exists(self):
+        self.assertIsNone(rr.insert_entry(EXISTING, "1.6.0", "## Version 1.6.0\n"))
+
+    def test_insert_into_empty_file(self):
+        self.assertEqual(
+            rr.insert_entry("", "1.7.0", ENTRY_170),
+            "## Contents\n\n- [Version 1.7.0](#version-170)\n\n" + ENTRY_170,
+        )
+
+    def test_insert_when_no_contents_list(self):
+        out = rr.insert_entry("# Changelog\n\n## Version 1.6.0\n\nx\n", "1.7.0", ENTRY_170)
+        self.assertEqual(
+            out,
+            "## Contents\n\n- [Version 1.7.0](#version-170)\n\n" + ENTRY_170
+            + "\n# Changelog\n\n## Version 1.6.0\n\nx\n",
+        )
+
+    def test_anchor_drops_dots(self):
+        self.assertEqual(rr.anchor("1.10.2"), "version-1102")
 
 
 if __name__ == "__main__":

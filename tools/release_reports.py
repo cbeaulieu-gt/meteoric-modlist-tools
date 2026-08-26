@@ -96,3 +96,97 @@ def generate_reports(old_path, new_path, out_dir, min_confidence=0.80):
     for name in REPORT_NAMES:
         _write(os.path.join(out_dir, name), texts[name])
     return texts
+
+
+COUNTS_RE = re.compile(r"\*\*(Added|Removed|Updated):\*\* (\d+) mods")
+HEADING_RE = re.compile(r"^## ")
+
+
+def parse_counts(changelog_text):
+    """Return ``{"Added": n, "Removed": n, "Updated": n}`` from a generated
+    changelog.md; ValueError if any is missing."""
+    counts = {kind: int(n) for kind, n in COUNTS_RE.findall(changelog_text)}
+    missing = [k for k in ("Added", "Removed", "Updated") if k not in counts]
+    if missing:
+        raise ValueError(f"changelog summary is missing counts for: {', '.join(missing)}")
+    return counts
+
+
+def anchor(version):
+    """GitHub heading anchor for ``## Version <version>``: dots dropped."""
+    return "version-" + version.replace(".", "")
+
+
+def render_entry(version, counts, pages_url, has_loadorder):
+    """Render the ``## Version <version>`` skeleton for CHANGELOG.md.
+
+    ``.md`` and folder links are repo-relative; ``.html`` links go through
+    ``pages_url`` (GitHub doesn't render HTML in the repo browser) unless it
+    is empty, in which case they are relative too.
+    """
+    base = pages_url.rstrip("/") + "/" if pages_url else ""
+    folder = f"changelog/v{version}"
+    lines = [
+        f"## Version {version}",
+        "",
+        "**This update is <!-- TODO: save-safe / probably not save-safe / not save-safe -->.**",
+        "",
+        "<!-- TODO: write highlights (### Category / - bullet sections) -->",
+        "",
+        "### Summary",
+        f"- **Added:** {counts['Added']} mods",
+        f"- **Removed:** {counts['Removed']} mods",
+        f"- **Updated:** {counts['Updated']} mods",
+        "",
+        "### Detailed Reports",
+        f"- [Full changelog]({folder}/changelog.md) — complete added/removed/updated mod lists",
+        f"- [Diff report]({base}{folder}/diff.html) — full modlist diff",
+        f"- [Coverage report]({base}{folder}/coverage.html) — coverage details",
+    ]
+    if has_loadorder:
+        lines.append(
+            f"- [Load order](loadorder/v{version}/) — load order, modlist, "
+            "plugin groups, and plugins files")
+    return "\n".join(lines) + "\n"
+
+
+def insert_entry(text, version, entry):
+    """Return ``text`` with a Contents line and ``entry`` inserted for
+    ``version``, or None if ``## Version <version>`` is already present.
+
+    The Contents line becomes the first item of the ``## Contents`` list; the
+    entry goes right after that list, before the previous newest section. A
+    file without ``## Contents`` (or empty) gets one prepended.
+    """
+    if re.search(rf"^## Version {re.escape(version)}\s*$", text, re.MULTILINE):
+        return None
+    contents_line = f"- [Version {version}](#{anchor(version)})"
+    block = entry.rstrip("\n").split("\n")
+    lines = text.split("\n") if text else []
+    if lines and lines[-1] == "":
+        lines.pop()  # trailing newline is re-added on join
+
+    heading = next((i for i, l in enumerate(lines) if l.rstrip() == "## Contents"), None)
+    if heading is None:
+        head = ["## Contents", "", contents_line, "", *block]
+        return "\n".join(head + ([""] + lines if lines else [])) + "\n"
+
+    # First list item inside the Contents section, else insert one.
+    i = heading + 1
+    while i < len(lines) and not lines[i].startswith("- ") and not HEADING_RE.match(lines[i]):
+        i += 1
+    if i < len(lines) and lines[i].startswith("- "):
+        lines.insert(i, contents_line)
+    else:
+        lines[heading + 1:heading + 1] = ["", contents_line]
+        i = heading + 2
+
+    # Entry goes before the next "## " heading after the list, or at the end.
+    j = i + 1
+    while j < len(lines) and not HEADING_RE.match(lines[j]):
+        j += 1
+    insert = block + [""] if j < len(lines) else block
+    if j > 0 and lines[j - 1] != "":
+        insert = [""] + insert
+    lines[j:j] = insert
+    return "\n".join(lines) + "\n"
