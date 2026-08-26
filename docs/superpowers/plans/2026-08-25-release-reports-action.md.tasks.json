@@ -1,0 +1,76 @@
+{
+  "planPath": "docs/superpowers/plans/2026-08-25-release-reports-action.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 1: Version parsing and list pairing",
+      "status": "pending",
+      "blockedBy": [],
+      "description": "**Goal:** `tools/release_reports.py` exists with `parse_version` and `find_pair`, covered by tests.\n\n**Files:**\n- Create: `tools/release_reports.py`\n- Create: `tools/test_release_reports.py`\n\n**Acceptance Criteria:**\n- [ ] `parse_version(\"NORDIC SOULS v3.2.0 - PBR Edition 1.6.0.json\") == ((1, 6, 0), \"1.6.0\")`; the `v3.2.0` in the base name is ignored.\n- [ ] `parse_version(\"v2.0.2.json\") == ((2, 0, 2), \"2.0.2\")`, `parse_version(\"my-list_1.10.json\") == ((1, 10), \"1.10\")`, `parse_version(\"My List.json\") is None`, `parse_version(\"notes 1.0.txt\") is None`.\n- [ ] `find_pair` on a dir with `Foo 1.9.0.json`, `Foo 1.10.0.json`, `Foo 1.2.0.json` returns `(…/Foo 1.9.0.json, …/Foo 1.10.0.json, \"1.10.0\")` (numeric order, not string order).\n- [ ] `find_pair` returns `None` with fewer than two versioned files; unversioned `.json` files are ignored.\n\n**Verify:** `cd tools && python -m unittest test_release_reports -v` → all `VersionTests`/`PairTests` pass.\n\n```json:metadata\n{\"files\": [\"tools/release_reports.py\", \"tools/test_release_reports.py\"], \"verifyCommand\": \"cd tools && python -m unittest test_release_reports -v\", \"acceptanceCriteria\": [\"parse_version handles trailing token, v-prefix, two-part, no-token, non-json\", \"find_pair sorts numerically and returns the two newest\", \"find_pair returns None with <2 versioned files\"], \"modelTier\": \"mechanical\"}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: Report generation into `changelog/v<ver>/`",
+      "status": "pending",
+      "blockedBy": [
+        1
+      ],
+      "description": "**Goal:** `generate_reports(old_path, new_path, out_dir)` writes the three fixed-name reports whose content equals the generators' output for the `examples/lists/` fixtures.\n\n**Files:**\n- Modify: `tools/release_reports.py`\n- Modify: `tools/test_release_reports.py`\n\n**Acceptance Criteria:**\n- [ ] After `generate_reports(EX10, EX11, out)`, `out/` contains exactly `changelog.md`, `diff.html`, `coverage.html`.\n- [ ] `changelog.md` content equals `generate_changelog.generate(load(EX10), load(EX11))`; `diff.html` equals `generate_diff.generate(old, new, \"Example List 1.0\", \"Example List 1.1\")`; `coverage.html` equals `generate_coverage.generate(old, new, \"Example List 1.0\", \"Example List 1.1\")`.\n- [ ] The return value is `{\"changelog.md\": text, \"diff.html\": text, \"coverage.html\": text}`.\n- [ ] `out_dir` is created if missing (including parents).\n\n**Verify:** `cd tools && python -m unittest test_release_reports.GenerateTests -v` → pass.\n\n```json:metadata\n{\"files\": [\"tools/release_reports.py\", \"tools/test_release_reports.py\"], \"verifyCommand\": \"cd tools && python -m unittest test_release_reports -v\", \"acceptanceCriteria\": [\"exactly changelog.md, diff.html, coverage.html written\", \"content equals the generators' generate() output for examples/lists\", \"out_dir created with parents\"], \"modelTier\": \"mechanical\"}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: CHANGELOG.md skeleton insertion",
+      "status": "pending",
+      "blockedBy": [
+        2
+      ],
+      "description": "**Goal:** `parse_counts`, `render_entry`, and `insert_entry` produce the spec §5 skeleton and splice it into a `CHANGELOG.md` idempotently.\n\n**Files:**\n- Modify: `tools/release_reports.py`\n- Modify: `tools/test_release_reports.py`\n\n**Acceptance Criteria:**\n- [ ] `parse_counts` returns `{\"Added\": 41, \"Removed\": 20, \"Updated\": 69}` from a generator changelog; raises `ValueError` if any of the three is missing.\n- [ ] `render_entry(\"1.6.0\", counts, \"https://x.github.io/r/\", has_loadorder=False)` equals the exact block below (Pages URLs on the two `.html` links, no Load order line); with `pages_url=\"\"` the `.html` links are `changelog/v1.6.0/diff.html`; with `has_loadorder=True` the Load order line is appended; a pages URL without trailing slash gets one.\n- [ ] `insert_entry` on the nordic-souls-shaped fixture puts `- [Version 1.7.0](#version-170)` first in Contents and the new section immediately after the Contents list, before `## Version 1.6.0`, with exactly one blank line on each side; anchor drops the dots.\n- [ ] `insert_entry` returns `None` when `## Version <ver>` already exists.\n- [ ] `insert_entry(\"\", …)` yields `## Contents\\n\\n- [Version …]\\n\\n## Version …` (fresh file); a file with no `## Contents` gets one prepended.\n\n**Verify:** `cd tools && python -m unittest test_release_reports.ChangelogTests -v` → pass.\n\n```json:metadata\n{\"files\": [\"tools/release_reports.py\", \"tools/test_release_reports.py\"], \"verifyCommand\": \"cd tools && python -m unittest test_release_reports -v\", \"acceptanceCriteria\": [\"parse_counts extracts the three counts and errors when one is missing\", \"render_entry matches the spec block exactly, Pages vs relative links, optional Load order line\", \"insert_entry places Contents line first and section right after Contents; None if section exists; handles empty/no-Contents files\"], \"modelTier\": \"mechanical\"}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: CLI `main()` and end-to-end script behaviour",
+      "status": "pending",
+      "blockedBy": [
+        3
+      ],
+      "description": "**Goal:** `python tools/release_reports.py` wires discovery → skip check → reports → CHANGELOG → `GITHUB_OUTPUT`, with the exit-0 notice paths from the spec's error table.\n\n**Files:**\n- Modify: `tools/release_reports.py`\n- Modify: `tools/test_release_reports.py`\n\n**Acceptance Criteria:**\n- [ ] In a temp repo with `lists/` = copies of the two example lists, `main([\"--repo\", repo, \"--pages-url\", \"https://x/\"])` returns 0, creates `changelog/v1.1/{changelog.md,diff.html,coverage.html}`, creates `CHANGELOG.md` containing `## Version 1.1` and `https://x/changelog/v1.1/diff.html`, and appends `version=1.1` to the file named by `GITHUB_OUTPUT`.\n- [ ] Running `main` again returns 0, changes nothing, and appends `version=` (empty).\n- [ ] `--force` regenerates the reports but leaves the existing `## Version 1.1` section untouched (the CHANGELOG file is byte-identical).\n- [ ] With one list, `main` returns 0, creates nothing, and writes `version=`.\n- [ ] A `loadorder/v1.1/` directory present before the run adds the Load order line.\n- [ ] `--lists` and `--changelog-file` resolve relative to `--repo`; absolute paths are used as-is.\n\n**Verify:** `cd tools && python -m unittest test_release_reports -v` → all pass; `python tools/release_reports.py --repo <tmp>` prints what it wrote.\n\n```json:metadata\n{\"files\": [\"tools/release_reports.py\", \"tools/test_release_reports.py\"], \"verifyCommand\": \"cd tools && python -m unittest test_release_reports -v\", \"acceptanceCriteria\": [\"first run writes reports + CHANGELOG + version output\", \"second run is a no-op with empty version output\", \"--force regenerates reports only\", \"single list is a no-op\", \"loadorder line when folder exists\", \"--lists/--changelog-file resolve against --repo\"], \"modelTier\": \"mechanical\"}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: `action.yml` composite action",
+      "status": "pending",
+      "blockedBy": [
+        4
+      ],
+      "description": "**Goal:** A root-level composite action that runs the script and, when it produced a version, pushes a branch and opens a PR.\n\n**Files:**\n- Create: `action.yml`\n\n**Acceptance Criteria:**\n- [ ] Inputs `lists` (default `lists`), `pages-url` (default `\"\"`), `changelog-file` (default `CHANGELOG.md`), `token` (default `${{ github.token }}`); outputs `version`, `pr-url`.\n- [ ] Step `generate` runs `python3 \"${{ github.action_path }}/tools/release_reports.py\"` with the inputs; no checkout of this repo (composite actions are already checked out at `github.action_path`).\n- [ ] Step `pr` runs only when `steps.generate.outputs.version != ''`; commits as `github-actions[bot]`, pushes `modlist-reports/v<ver>` without `--force`, opens the PR against `github.event.repository.default_branch` with `gh`, and writes `pr-url`.\n- [ ] The `pr` step's shell block passes `bash -n`; YAML validity and behaviour are proven by the live run in Task 8 (no PyYAML in the stdlib to lint locally).\n\n**Verify:** extract the `run:` block of the `pr` step into a file and run `bash -n` on it → no syntax errors; end-to-end verification is Task 8.\n\n```json:metadata\n{\"files\": [\"action.yml\"], \"verifyCommand\": \"bash -n on the extracted pr-step script\", \"acceptanceCriteria\": [\"inputs/outputs as spec\", \"generate step runs the script from github.action_path\", \"pr step gated on non-empty version, no force-push, PR against default branch\"], \"modelTier\": \"standard\"}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 6: Documentation (README, CLAUDE.md, test command)",
+      "status": "pending",
+      "blockedBy": [
+        5
+      ],
+      "description": "**Goal:** Consumers can install the action from the README; the assistant guide and test commands know about the new files.\n\n**Files:**\n- Modify: `README.md` (new `## GitHub Action` section before `## Claude Code slash commands`; test command in `## Testing`)\n- Modify: `CLAUDE.md` (tool list bullet; test command)\n\n**Acceptance Criteria:**\n- [ ] README has a `## GitHub Action` section containing: the consumer layout, the filename/version table, the starter workflow, the inputs table, prerequisites (Pages from branch; Actions \"Read and write\" + \"Allow GitHub Actions to create and approve pull requests\"), what the PR contains, and the \"one modlist per `lists/`\" constraint.\n- [ ] Both test commands (README + CLAUDE.md) include `test_release_reports`.\n- [ ] CLAUDE.md's tool list has a `tools/release_reports.py` bullet naming `action.yml` and linking the spec.\n\n**Verify:** `grep -n \"test_release_reports\" README.md CLAUDE.md` → 2 hits; `grep -n \"^## GitHub Action\" README.md` → 1 hit; the full suite command in CLAUDE.md runs green.\n\n```json:metadata\n{\"files\": [\"README.md\", \"CLAUDE.md\"], \"verifyCommand\": \"grep -n test_release_reports README.md CLAUDE.md && grep -n '^## GitHub Action' README.md\", \"acceptanceCriteria\": [\"README GitHub Action section with layout, naming table, starter workflow, inputs, prerequisites, PR contents\", \"test commands include test_release_reports\", \"CLAUDE.md tool bullet\"], \"modelTier\": \"mechanical\"}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 7: Publish `v1` (user gate — outward-facing)",
+      "status": "pending",
+      "blockedBy": [
+        6
+      ],
+      "description": "**Goal:** The action is reachable as `imightbemeteor/meteoric-modlist-tools@v1`.\n\n**USER-ORDERED GATE — NON-SKIPPABLE.** This task was requested by the user in the current conversation. It MUST NOT be closed by walking around it, by declaring it \"verified inline\", or by substituting a cheaper check. Close only after every item in `acceptanceCriteria` has been re-validated independently, with output captured.\n\n**Files:** none (git tags only)\n\n**Acceptance Criteria:**\n- [ ] The user has confirmed pushing to `origin main` and creating the tags.\n- [ ] `git ls-remote --tags origin` lists `v1.0.0` and `v1`, both pointing at the commit from Task 6.\n\n**Verify:** `git ls-remote --tags origin | grep -E 'refs/tags/v1(\\.0\\.0)?$'` → two lines with the same SHA.\n\n```json:metadata\n{\"files\": [], \"verifyCommand\": \"git ls-remote --tags origin | grep -E 'refs/tags/v1(\\\\.0\\\\.0)?$'\", \"acceptanceCriteria\": [\"user confirmed the push\", \"v1.0.0 and v1 tags exist on origin at the same SHA\"], \"modelTier\": \"mechanical\", \"userGate\": true, \"tags\": [\"user-gate\"], \"gateScope\": \"outward-facing push\"}\n```"
+    },
+    {
+      "id": 8,
+      "subject": "Task 8: End-to-end verification in nordic-souls-PBR (user gate)",
+      "status": "pending",
+      "blockedBy": [
+        7
+      ],
+      "description": "**Goal:** The starter workflow installed in `SkrubbySkrubInAShrub/nordic-souls-PBR` opens a PR whose reports match the published `changelog/v1.6.0/` modulo the refreshed 1.6.0 export.\n\n**USER-ORDERED GATE — NON-SKIPPABLE.** This task was requested by the user in the current conversation. It MUST NOT be closed by walking around it, by declaring it \"verified inline\", or by substituting a cheaper check. Close only after every item in `acceptanceCriteria` has been re-validated independently, with output captured.\n\n**Files (in the consumer repo, not this one):**\n- Create: `nordic-souls-PBR/.github/workflows/release-reports.yml` (the README starter, `pages-url: https://skrubbyskrubinashrub.github.io/nordic-souls-PBR/`)\n- Create: `nordic-souls-PBR/lists/NORDIC SOULS v3.1.1 - PBR Edition 1.5.0.json`, `… v3.2.0 - PBR Edition 1.6.0.json` (from this workspace's `lists/`)\n\n**Acceptance Criteria:**\n- [ ] Because `changelog/v1.6.0/` already exists there, the first run must be a no-op: the workflow log shows `already exists; nothing to do` and no PR is opened. (This is the idempotency check on a real repo.)\n- [ ] Then, on a branch, delete `changelog/v1.6.0/` and the `## Version 1.6.0` section's Contents line + section from `CHANGELOG.md`, push, and trigger `workflow_dispatch` on that branch: a PR `modlist-reports/v1.6.0` opens against the default branch.\n- [ ] In that PR, `changelog/v1.6.0/changelog.md` differs from the published one only in the three refreshed mods (CommunityShaders_AIO date, DynDOLOD DLL NG, Simple Follower Framework) and the `Updated` count (71 vs 69); `diff.html`/`coverage.html` likewise.\n- [ ] The PR's `CHANGELOG.md` diff adds `- [Version 1.6.0](#version-160)` first in Contents and a `## Version 1.6.0` section with the two TODO markers and Pages URLs.\n- [ ] Captured output: the workflow run URL, the PR URL, and the `diff` between the PR's `changelog.md` and the published one.\n\n**Verify:** `gh pr view <pr-url> --json files` lists exactly `changelog/v1.6.0/changelog.md`, `changelog/v1.6.0/coverage.html`, `changelog/v1.6.0/diff.html`, `CHANGELOG.md`; `gh pr diff <pr-url> -- changelog/v1.6.0/changelog.md` shows only the refreshed-mod lines.\n\n```json:metadata\n{\"files\": [], \"verifyCommand\": \"gh pr view <pr-url> --json files && gh pr diff <pr-url> -- changelog/v1.6.0/changelog.md\", \"acceptanceCriteria\": [\"first run on the live repo is a logged no-op with no PR\", \"branch run opens modlist-reports/v1.6.0 PR with exactly the four files\", \"changelog.md diff vs published limited to the three refreshed mods and the Updated count\", \"CHANGELOG.md diff adds Contents line + skeleton with TODOs and Pages URLs\", \"run URL, PR URL and diff captured\"], \"modelTier\": \"frontier\", \"userGate\": true, \"tags\": [\"user-gate\"], \"requireEvidenceTokens\": [[\"nothing to do\", \"no-op\"], [\"modlist-reports/v1.6.0\", \"pr-url\"]], \"gateScope\": \"live consumer repo\"}\n```"
+    }
+  ],
+  "lastUpdated": "2026-08-25T00:00:00"
+}
