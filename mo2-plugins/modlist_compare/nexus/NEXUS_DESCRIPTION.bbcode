@@ -19,6 +19,7 @@ Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one 
 [*][b]Changelog[/b] - Added, removed, and updated mods between two versions of a list (markdown)[/*]
 [*][b]Live profile support[/b] - Compare against your current profile directly, no export step needed[/*]
 [*][b]Smart matching[/b] - Mods are matched across lists by Nexus IDs, plugin files, and names, so renames and merges are handled[/*]
+[*][b]GitHub Action[/b] - Modlist repos can generate and publish these reports automatically on every release (see below)[/*]
 [*][b]Responsive UI[/b] - Generation runs behind a progress dialog with live percent and cancel; MO2 stays responsive, not frozen[/*]
 [/list]
 
@@ -28,6 +29,14 @@ Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one 
 [*][b]Open Generate Reports[/b] - Pick List 1 (source/old) and List 2 (target/new): a JSON file or the current profile, with at least one side a file[/*]
 [*][b]Choose reports[/b] - Any combination of Coverage, Diff, and Changelog, plus a destination folder[/*]
 [*][b]Generate[/b] - Reports are written to the destination; Open Folder takes you straight there[/*]
+[/list]
+
+[size=3][color=#F5A623][b]For Modlist Maintainers: GitHub Action[/b][/color][/size]
+If your list lives in a GitHub repo (Wabbajack lists, for example), the same reports can be generated for you on every release. Export your list with this plugin, commit the JSON to a [b]lists/[/b] folder in your repo, and a GitHub Action opens a pull request with the changelog, diff, and coverage reports comparing it against the previous version, plus a CHANGELOG.md entry skeleton for you to fill in. Enable GitHub Pages and the HTML reports are served straight from the repo.
+[list]
+[*]Instructions and the copy-paste workflow: [url=https://github.com/imightbemeteor/meteoric-modlist-tools#github-action]meteoric-modlist-tools#github-action[/url][/*]
+[*]Live example - Nordic Souls PBR: [url=https://skrubbyskrubinashrub.github.io/nordic-souls-PBR/changelog/v1.5.0/diff.html]diff[/url] | [url=https://skrubbyskrubinashrub.github.io/nordic-souls-PBR/changelog/v1.5.0/coverage.html]coverage[/url] | [url=https://github.com/SkrubbySkrubInAShrub/nordic-souls-PBR/blob/main/changelog/v1.5.0/changelog.md]changelog[/url][/*]
+[*]It compares the two newest exports, so your first PR arrives with your [i]second[/i] release - a single JSON produces nothing[/*]
 [/list]
 
 [size=3][color=#F5A623][b]Requirements[/b][/color][/size]
