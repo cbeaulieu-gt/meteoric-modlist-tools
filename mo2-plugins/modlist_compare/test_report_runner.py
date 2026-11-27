@@ -236,6 +236,31 @@ class TestRebase(unittest.TestCase):
             self.assertEqual(len(result.written), 1)
             self.assertTrue(result.written[0].endswith(".changelog.md"))
 
+    def _rebase_html(self, ignored_names=None):
+        """Render rebase (1.1 vs 1.0, base 1.0) with an optional ignore file."""
+        with tempfile.TemporaryDirectory() as tmp:
+            if ignored_names is not None:
+                target_dir = os.path.join(tmp, "Example List 1.0")
+                os.makedirs(target_dir)
+                with open(os.path.join(target_dir, ".coverage-ignore.txt"), "w",
+                          encoding="utf-8") as f:
+                    f.write("\n".join(ignored_names) + "\n")
+            result = report_runner.run_reports(
+                _side(NEW_LIST), _side(OLD_LIST), ["rebase"], tmp,
+                save_exports=False, base=_side(OLD_LIST),
+            )
+            self.assertEqual(result.errors, [])
+            with open(result.written[0], encoding="utf-8") as f:
+                return f.read()
+
+    def test_rebase_reads_ignore_file(self):
+        baseline = _row_classes(self._rebase_html(), "Sky Idles")
+        self.assertIsNotNone(baseline, "Sky Idles row missing from rebase report")
+        self.assertNotIn("mod-ignored", baseline)
+        html = self._rebase_html(["Sky Idles"])
+        self.assertEqual(_row_classes(html, "Sky Idles"), ["mod-ignored"])
+        self.assertNotIn("mod-ignored", _row_classes(html, "Dear Diary Dark Mode"))
+
     def test_save_exports_writes_every_profile_side(self):
         data = _side(OLD_LIST).data
         a = report_runner.ListSide("Base", data, from_profile=True)
@@ -260,6 +285,38 @@ class TestValidateRun(unittest.TestCase):
             report_runner.ListSide("A", []),
             report_runner.ListSide("B", []), ["rebase"], base=None)
         self.assertIn("previous base", msg)
+
+    def _rebase_save(self, base_name, profile_name, save_exports,
+                     profile_side=1):
+        base = report_runner.ListSide(base_name, [])
+        profile = report_runner.ListSide(profile_name, [], from_profile=True)
+        other = report_runner.ListSide("Other", [])
+        sides = (profile, other) if profile_side == 1 else (other, profile)
+        return report_runner.validate_run(
+            *sides, ["rebase"], base=base, save_exports=save_exports)
+
+    def test_rebase_refused_when_export_would_overwrite_base(self):
+        for side in (1, 2):
+            msg = self._rebase_save("Nord", "Nord", True, profile_side=side)
+            self.assertIn("previous base", msg)
+            self.assertIn("Save profile exports", msg)
+
+    def test_rebase_name_clash_is_case_insensitive(self):
+        msg = self._rebase_save("nord", "NORD", True)
+        self.assertIn("previous base", msg)
+
+    def test_rebase_name_clash_allowed_when_not_saving_exports(self):
+        self.assertIsNone(self._rebase_save("Nord", "Nord", False))
+
+    def test_rebase_allowed_when_names_differ(self):
+        self.assertIsNone(self._rebase_save("Nord Old", "Nord", True))
+
+    def test_name_clash_ignored_without_rebase(self):
+        base = report_runner.ListSide("Nord", [])
+        profile = report_runner.ListSide("Nord", [], from_profile=True)
+        self.assertIsNone(report_runner.validate_run(
+            profile, report_runner.ListSide("Other", []), ["diff"],
+            base=base, save_exports=True))
 
     def test_valid_run_is_none(self):
         self.assertIsNone(report_runner.validate_run(

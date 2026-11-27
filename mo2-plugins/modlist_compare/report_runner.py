@@ -150,8 +150,12 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
     return result
 
 
-def validate_run(list1, list2, report_types, base=None):
-    """Return an error message if the run cannot proceed, else None."""
+def validate_run(list1, list2, report_types, base=None, save_exports=False):
+    """Return an error message if the run cannot proceed, else None.
+
+    save_exports mirrors run_reports: with it on, a profile side named like the
+    previous base would be re-exported over the base snapshot.
+    """
     if modlist_utils.name_key(list1.name) == modlist_utils.name_key(list2.name):
         return (
             "Both lists have the same name; their reports would overwrite "
@@ -159,4 +163,15 @@ def validate_run(list1, list2, report_types, base=None):
         )
     if "rebase" in report_types and base is None:
         return "The Rebase report needs a previous base list."
+    if "rebase" in report_types and save_exports and base is not None:
+        base_key = modlist_utils.name_key(base.name)
+        for side in (list1, list2):
+            if side.from_profile and modlist_utils.name_key(side.name) == base_key:
+                return (
+                    f"The previous base \"{base.name}\" has the same name as "
+                    f"profile \"{side.name}\". \"Save profile exports as JSON\" "
+                    "would overwrite the previous base file with the new state "
+                    "and the worklist would come out empty. Untick the export "
+                    "option, or rename or move the previous base file."
+                )
     return None

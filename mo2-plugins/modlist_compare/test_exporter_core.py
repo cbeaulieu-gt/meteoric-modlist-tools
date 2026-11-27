@@ -122,6 +122,106 @@ class TestExportProfileFromFiles(unittest.TestCase):
             prof, mods = self._make(tmp, "# This file was automatically generated\n", [])
             self.assertEqual(exporter_core.export_profile_from_files(prof, mods), [])
 
+    def test_utf8_bom_does_not_drop_the_first_entry(self):
+        # MO2 writes modlist.txt without a BOM, but editors add one; the first
+        # line in the file is the lowest-priority (last-exported) entry.
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "", ["Mod A", "Mod B"])
+            with open(os.path.join(prof, "modlist.txt"), "wb") as f:
+                f.write("﻿+Mod A\n+Mod B\n".encode("utf-8"))
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual([i["modName"] for i in items], ["Mod B", "Mod A"])
+
+
+class _FakeMod:
+    def __init__(self, path, nexus_id, separator):
+        self._path, self._id, self._sep = path, nexus_id, separator
+
+    def isSeparator(self):
+        return self._sep
+
+    def nexusId(self):
+        return self._id
+
+    def absolutePath(self):
+        return self._path
+
+
+class _FakeModList:
+    def __init__(self, names, states):
+        self._names, self._states = names, states
+
+    def allModsByProfilePriority(self):
+        return list(self._names)
+
+    def state(self, name):
+        return self._states[name]
+
+
+class _FakeLiveOrg:
+    """Reads one synthetic mods folder the way MO2 would for the live profile."""
+
+    def __init__(self, mods_path, top_to_bottom, enabled):
+        states = {n: (2 if enabled[n] else 0) for n in top_to_bottom}
+        self._modlist = _FakeModList(top_to_bottom, states)
+        self._mods = {}
+        for name in top_to_bottom:
+            path = os.path.join(mods_path, name)
+            nexus_id = exporter_core._modid_from_meta(path)
+            self._mods[name] = _FakeMod(
+                path, nexus_id, name.endswith("_separator"))
+
+    def modList(self):
+        return self._modlist
+
+    def getMod(self, name):
+        return self._mods.get(name)
+
+
+class TestLiveFileParity(unittest.TestCase):
+    """export_modlist (live) and export_profile_from_files agree on one folder."""
+
+    def test_same_items_for_the_same_synthetic_profile(self):
+        from unittest import mock
+        import types
+        stub = types.SimpleNamespace(
+            ModState=types.SimpleNamespace(ACTIVE=2))
+        top_to_bottom = [
+            "Core_separator", "[Fix] Alpha Mod", "Beta Mod",
+            "Extras_separator", "Gamma Mod",
+        ]
+        enabled = {
+            "Core_separator": True, "[Fix] Alpha Mod": True,
+            "Beta Mod": False, "Extras_separator": True, "Gamma Mod": True,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            mods = os.path.join(tmp, "mods")
+            prof = os.path.join(tmp, "profiles", "P")
+            os.makedirs(prof)
+            for name in top_to_bottom:
+                os.makedirs(os.path.join(mods, name))
+            _write(os.path.join(mods, "[Fix] Alpha Mod", "meta.ini"),
+                   "[General]\nmodid=77\nversion=1.0\n"
+                   "installationFile=Alpha-77.7z\n"
+                   "[installedFiles]\nsize=1\n1\\modid=77\n1\\fileid=9\n")
+            _write(os.path.join(mods, "[Fix] Alpha Mod", "alpha.esp"), "")
+            _write(os.path.join(mods, "Gamma Mod", "gamma.esl"), "")
+            # modlist.txt lists highest priority FIRST (reverse of top-to-bottom).
+            lines = [("+" if enabled[n] else "-") + n
+                     for n in reversed(top_to_bottom)]
+            _write(os.path.join(prof, "modlist.txt"), "\n".join(lines) + "\n")
+
+            org = _FakeLiveOrg(mods, top_to_bottom, enabled)
+            with mock.patch.dict(sys.modules, {"mobase": stub}):
+                live = exporter_core.export_modlist(org)
+            from_files = exporter_core.export_profile_from_files(prof, mods)
+
+        self.assertEqual(live, from_files)
+        # Guard against a vacuous pass.
+        self.assertEqual(len(live), 5)
+        self.assertEqual(live[1]["id"], 77)
+        self.assertIs(live[2]["active"], False)
+
 
 class _Prof:
     def __init__(self, path):

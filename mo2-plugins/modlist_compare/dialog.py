@@ -450,7 +450,10 @@ class GenerateReportsDialog(QDialog):
         if side2 is None:
             return
 
-        problem = report_runner.validate_run(side1, side2, report_types, base)
+        problem = report_runner.validate_run(
+            side1, side2, report_types, base,
+            save_exports=self._save_export_box.isChecked(),
+        )
         if problem:
             self._warn(problem)
             return

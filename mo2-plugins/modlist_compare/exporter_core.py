@@ -187,7 +187,8 @@ def export_profile_from_files(profile_dir, mods_path):
     Same item structure as export_modlist. Entries with no folder in
     mods_path are skipped; order is top-to-bottom (reverse of the file).
     """
-    with open(os.path.join(profile_dir, "modlist.txt"), encoding="utf-8") as f:
+    # utf-8-sig: a BOM would otherwise glue itself to the first line's marker.
+    with open(os.path.join(profile_dir, "modlist.txt"), encoding="utf-8-sig") as f:
         entries = parse_modlist_txt(f.read())
 
     items = []
