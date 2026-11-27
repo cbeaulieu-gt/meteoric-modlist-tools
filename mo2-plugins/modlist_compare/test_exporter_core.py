@@ -181,11 +181,47 @@ class TestExportProfileFromFiles(unittest.TestCase):
 
     def test_listed_name_matches_folder_case_insensitively(self):
         with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "Probe"))
+            if not os.path.isdir(os.path.join(tmp, "probe")):
+                self.skipTest("case-sensitive filesystem")
             prof, mods = self._make(tmp, "+mod a\n", ["Mod A", "Zed"])
             items = exporter_core.export_profile_from_files(prof, mods)
         names = [i["modName"].casefold() for i in items]
         self.assertEqual(names.count("mod a"), 1)
         self.assertEqual(names[-1], "zed")
+
+    def test_listed_mod_plus_unlisted_folder_has_no_duplicate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "+Mod A\n", ["Mod A", "Zed"])
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual([i["modName"] for i in items], ["Mod A", "Zed"])
+
+    def test_unlisted_backup_folders_are_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(
+                tmp, "+Mod A\n",
+                ["Mod A", "My Mod_backup1", "Other backup", "Thing_backup"],
+            )
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual([i["modName"] for i in items], ["Mod A"])
+
+    def test_backup_rule_is_case_sensitive_and_anchored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(
+                tmp, "+Mod A\n", ["Mod A", "My Mod Backup1", "backup tools"]
+            )
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual(
+            [i["modName"] for i in items],
+            ["Mod A", "backup tools", "My Mod Backup1"],
+        )
+
+    def test_listed_backup_named_entry_is_still_exported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "+Mod_backup2\n", ["Mod_backup2"])
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual([i["modName"] for i in items], ["Mod_backup2"])
+        self.assertIs(items[0]["active"], True)
 
     def test_dot_folders_and_plain_files_are_ignored(self):
         with tempfile.TemporaryDirectory() as tmp:

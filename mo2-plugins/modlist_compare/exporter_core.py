@@ -182,6 +182,11 @@ def _modid_from_meta(mod_path):
         return 0
 
 
+def _is_backup_name(name):
+    """True for MO2 backup folders (ModInfo::isBackupName: ``.*backup[0-9]*``)."""
+    return re.fullmatch(r".*backup[0-9]*", name) is not None
+
+
 def export_profile_from_files(profile_dir, mods_path):
     """Export a (non-active) profile from its modlist.txt and the mods folder.
 
@@ -190,7 +195,9 @@ def export_profile_from_files(profile_dir, mods_path):
 
     Folders under mods_path that modlist.txt does not list (any state,
     compared case-insensitively; dot-prefixed names and non-directories
-    ignored) are appended as disabled mods, sorted by casefold, because MO2
+    ignored; MO2 backup folders, i.e. names fully matching the
+    case-sensitive ``.*backup[0-9]*``, skipped) are appended as disabled
+    mods, sorted by casefold, because MO2
     adds such folders as disabled when it loads the profile. ASSUMPTION, to
     be verified in real MO2: they land at the highest priority, i.e. at the
     END of this top-to-bottom export.
@@ -206,6 +213,7 @@ def export_profile_from_files(profile_dir, mods_path):
         (d for d in os.listdir(mods_path)
          if not d.startswith(".")
          and d.casefold() not in listed
+         and not _is_backup_name(d)
          and os.path.isdir(os.path.join(mods_path, d))),
         key=str.casefold,
     )
