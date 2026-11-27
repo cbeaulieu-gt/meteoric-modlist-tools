@@ -3,6 +3,30 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-11-27
+
+Modlist Compare plugin: compare any MO2 profile, and a worklist report for base
+updates.
+
+### Added
+
+- **Any MO2 profile as a side** in Generate Reports. Non-active profiles are read
+  from their `modlist.txt` plus each mod's `meta.ini`; mods whose folder is
+  missing are skipped.
+- **Rebase worklist report** with a **Previous base** JSON: only what changed in a
+  base update (the CLI's `--base` mode), written as
+  `<List 1> (from <Previous base>).rebase.html`. A run is refused when exporting a
+  profile would overwrite the Previous base file.
+
+### Changed
+
+- A profile side — including the current profile — is now named after the
+  profile, not its first separator. Report folders and `.coverage-ignore.txt`
+  files saved under the old separator-based name are no longer picked up; move or
+  rename them to the profile name to keep ignored mods.
+- The "Save live profile export" option is now **Save profile exports as JSON**
+  and covers every profile side.
+
 ## [1.1.0] — 2026-08-06
 
 Modlist Compare plugin: **Generate Reports…** no longer freezes MO2 while it

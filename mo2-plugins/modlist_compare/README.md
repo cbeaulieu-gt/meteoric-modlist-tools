@@ -65,7 +65,7 @@ While reports generate, a progress dialog shows live percent and which report is
 stays responsive. Closing that dialog by any route — the **Cancel** button, the window's X, or
 Esc — requests cancellation; the run stops at the next checkpoint and the progress dialog closes
 itself then, leaving the Generate Reports dialog open. Reports already written stay on disk, the
-in-progress one is discarded, and live-profile JSON exports are skipped. Any report written
+in-progress one is discarded, and profile JSON exports are skipped. Any report written
 before the cancel is still listed. Hover the list, report, and save-export controls for a short
 explanation of what each does; short hints also sit under the list rows and the destination row.
 
@@ -81,7 +81,10 @@ base. It is the same report as the CLI's `--base` mode; see
 
 The output is `<destination>/<List 2 name>/<List 1 name> (from <Previous base name>).rebase.html`.
 It shares List 2's `.coverage-ignore.txt` with the Coverage report. Rebase requires a Previous
-base; that path is not remembered between sessions (the other dialog settings are).
+base; that path is not remembered between sessions (the other dialog settings are). If a profile
+side has the same name as the Previous base while **Save profile exports as JSON** is on, the run
+is refused, because the export would overwrite the Previous base file — untick the option or
+rename the base file.
 
 ## Report naming and CLI interop
 
@@ -94,7 +97,9 @@ Reports are named exactly like the CLI tools' directory mode:
 `<type>` is `coverage`, `diff`, `changelog`, or `rebase`; the extension is `html` for all but the
 changelog, which is `md`. (Rebase reports are named `<List 1 name> (from <Previous base name>).rebase.html`.)
 A list's "name" is the JSON file's basename without extension, or — for a profile side — the
-profile's name. So pointing the plugin at the same `output/`
+profile's name — including the current profile, which earlier versions named after its first
+separator, so move any old report folders and `.coverage-ignore.txt` files to the profile name.
+So pointing the plugin at the same `output/`
 folder the CLI tools use drops the reports in the same per-target subfolders, and
 `python tools/regenerate.py "<List 2 name>"` refreshes them afterwards — with `--lists` pointed
 at wherever the exported JSONs live, since `regenerate.py` looks in `lists/` by default while
