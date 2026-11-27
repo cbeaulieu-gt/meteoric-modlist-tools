@@ -12,7 +12,8 @@ updates.
 
 - **Any MO2 profile as a side** in Generate Reports. Non-active profiles are read
   from their `modlist.txt` plus each mod's `meta.ini`; mods whose folder is
-  missing are skipped.
+  missing are skipped. Mods installed but missing from a non-active profile's
+  `modlist.txt` are included as disabled, placed last (placement unverified).
 - **Rebase worklist report** with a **Previous base** JSON: only what changed in a
   base update (the CLI's `--base` mode), written as
   `<List 1> (from <Previous base>).rebase.html`. A run is refused when exporting a

@@ -187,14 +187,33 @@ def export_profile_from_files(profile_dir, mods_path):
 
     Same item structure as export_modlist. Entries with no folder in
     mods_path are skipped; order is top-to-bottom (reverse of the file).
+
+    Folders under mods_path that modlist.txt does not list (any state,
+    compared case-insensitively; dot-prefixed names and non-directories
+    ignored) are appended as disabled mods, sorted by casefold, because MO2
+    adds such folders as disabled when it loads the profile. ASSUMPTION, to
+    be verified in real MO2: they land at the highest priority, i.e. at the
+    END of this top-to-bottom export.
     """
     # utf-8-sig: a BOM would otherwise glue itself to the first line's marker.
     with open(os.path.join(profile_dir, "modlist.txt"), encoding="utf-8-sig") as f:
         entries = parse_modlist_txt(f.read())
 
+    # (name, enabled) in top-to-bottom order; unlisted folders go last, disabled.
+    ordered = list(reversed(entries))
+    listed = {name.casefold() for name, _ in entries}
+    unlisted = sorted(
+        (d for d in os.listdir(mods_path)
+         if not d.startswith(".")
+         and d.casefold() not in listed
+         and os.path.isdir(os.path.join(mods_path, d))),
+        key=str.casefold,
+    )
+    ordered.extend((name, False) for name in unlisted)
+
     items = []
     current_separator = "Unsectioned"
-    for mod_name, enabled in reversed(entries):
+    for mod_name, enabled in ordered:
         mod_path = os.path.join(mods_path, mod_name)
         if not os.path.isdir(mod_path):
             continue

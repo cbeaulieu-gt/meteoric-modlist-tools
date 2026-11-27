@@ -161,6 +161,55 @@ class TestExportProfileFromFiles(unittest.TestCase):
             items = exporter_core.export_profile_from_files(prof, mods)
         self.assertEqual([i["modName"] for i in items], ["Mod B", "Mod A"])
 
+    def test_unlisted_folders_are_appended_disabled_sorted_casefold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(
+                tmp, "+Mod A\n", ["Mod A", "zebra", "Apple", "beta"]
+            )
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual(
+            [i["modName"] for i in items], ["Mod A", "Apple", "beta", "zebra"]
+        )
+        self.assertIs(items[0]["active"], True)
+        self.assertTrue(all(i["active"] is False for i in items[1:]))
+
+    def test_listed_disabled_mod_is_not_duplicated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "-Mod A\n", ["Mod A"])
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual([i["modName"] for i in items], ["Mod A"])
+
+    def test_listed_name_matches_folder_case_insensitively(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "+mod a\n", ["Mod A", "Zed"])
+            items = exporter_core.export_profile_from_files(prof, mods)
+        names = [i["modName"].casefold() for i in items]
+        self.assertEqual(names.count("mod a"), 1)
+        self.assertEqual(names[-1], "zed")
+
+    def test_dot_folders_and_plain_files_are_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "+Mod A\n", ["Mod A", ".hidden"])
+            _write(os.path.join(mods, "stray.txt"), "x")
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual([i["modName"] for i in items], ["Mod A"])
+
+    def test_unlisted_separator_and_contiguous_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(
+                tmp, "+Mod A\n", ["Mod A", "beta", "Z_separator", "zed"]
+            )
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual([i["order"] for i in items], list(range(len(items))))
+        self.assertEqual(
+            [(i["type"], i["displayName"]) for i in items],
+            [("mod", "Mod A"), ("mod", "beta"),
+             ("separator", "Z_separator"), ("mod", "zed")],
+        )
+        self.assertEqual(items[1]["separatorName"], "Unsectioned")
+        self.assertEqual(items[3]["separatorName"], "Z")
+        self.assertIs(items[3]["active"], False)
+
 
 class _FakeMod:
     def __init__(self, path, nexus_id, separator):

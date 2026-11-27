@@ -44,7 +44,8 @@ Opens a dialog:
   *JSON file…* (**Browse…** to pick an export). Both sides may be profiles, files, or one of
   each; picking the same profile on both sides, or the same file on both, is rejected.
   A non-active profile is read from its `modlist.txt` plus each mod's `meta.ini`; an entry
-  whose mod folder is missing is skipped. A profile side is named after the profile.
+  whose mod folder is missing is skipped, and an installed mod the file does not list is
+  included as disabled, placed last. A profile side is named after the profile.
 - **Reports** — any combination of **Coverage**, **Diff**, **Changelog**, and **Rebase**.
   - *Coverage* — what List 2 is missing or behind on compared to List 1 (HTML).
   - *Diff* — both lists' full ordering side by side, colour-coded (HTML).
