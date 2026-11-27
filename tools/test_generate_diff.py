@@ -94,7 +94,7 @@ class RenderTest(unittest.TestCase):
         self.assertIn("function applySectionVisibility", self.html)
         self.assertIn("function rowCounts", self.html)
         self.assertIn("function refilter", self.html)
-        self.assertIn("applySectionVisibility(terms.length>0)", self.html)
+        self.assertIn("applySectionVisibility(active)", self.html)
 
     def test_rowcounts_accounts_for_hide_unchanged(self):
         # An unchanged row suppressed by Hide unchanged must not keep its section
@@ -104,6 +104,108 @@ class RenderTest(unittest.TestCase):
 
     def test_toggle_unchanged_refilters(self):
         self.assertIn("refilter();", self.html)
+
+
+class FilterControlsTest(unittest.TestCase):
+    """Change-type chips and exclusion filters (mods / groups / categories)."""
+
+    def setUp(self):
+        sec = DiffRow(is_section=True, section_match=SectionMatch(
+            "Custom Animations", "Custom Animations", ChangeType.UNCHANGED))
+        both = DiffRow(
+            left_mod={"modName": "Walk", "general": {"category": '"1,2,"'}},
+            right_mod={"modName": "Walk", "general": {"category": '"1,2,"'}},
+            change=ChangeType.MOVED | ChangeType.UPDATED,
+            old_version="1", new_version="2")
+        gone = DiffRow(left_mod={"modName": "Gone", "general": {"category": ""}},
+                       change=ChangeType.REMOVED)
+        same = DiffRow(left_mod={"modName": "Same"}, right_mod={"modName": "Same"})
+        self.html = render_html([sec, both, gone, same], "Old", "New", _summary())
+
+    def test_type_chips(self):
+        for t in ("added", "removed", "moved", "updated"):
+            self.assertRegex(self.html, rf'type-chip[^>]*data-type="{t}"')
+
+    def test_row_types(self):
+        self.assertIn('data-types="moved updated"', self.html)
+        self.assertIn('data-types="removed"', self.html)
+        self.assertNotRegex(self.html, r'class="mod-unchanged"[^>]*data-types')
+
+    def test_row_group_and_category(self):
+        self.assertIn('data-sec="custom animations"', self.html)
+        self.assertIn('data-cat="1 2"', self.html)
+        self.assertIn('data-cat="none"', self.html)
+
+    def test_exclusion_controls(self):
+        self.assertIn('id="ex-mods"', self.html)
+        self.assertIn('id="ex-groups"', self.html)
+        self.assertIn('<input type="checkbox" value="custom animations">', self.html)
+        self.assertIn('<input type="checkbox" value="2">', self.html)
+        self.assertIn('<input type="checkbox" value="none">', self.html)
+
+    def test_category_names(self):
+        sec = DiffRow(is_section=True, section_match=SectionMatch("S", "S", ChangeType.UNCHANGED))
+        row = DiffRow(left_mod={"modName": "Walk", "general": {"category": '"5,"'}},
+                      right_mod={"modName": "Walk", "general": {"category": '"5,"'}})
+        names = {"5": "Animations"}
+        html_ = render_html([sec, row], "Old", "New", _summary(), names)
+        self.assertIn('<input type="checkbox" value="5"> Animations</label>', html_)
+        self.assertIn('id="ex-cats"', html_)
+        self.assertIn('data-catn="animations"', html_)
+        plain = render_html([sec, row], "Old", "New", _summary())
+        self.assertNotIn('id="ex-cats"', plain)
+        self.assertNotIn("data-catn", plain)
+        self.assertIn('<input type="checkbox" value="5"> 5</label>', plain)
+
+    def test_no_dropdown_without_data(self):
+        self.assertNotIn('class="ex-list"', render_html([], "Old", "New", _summary()))
+
+    def test_filter_js(self):
+        self.assertIn("dataset.types", self.html)
+        self.assertIn("csv('ex-mods')", self.html)
+
+    def test_decorated_and_plain_group_stay_distinct(self):
+        rows = []
+        for name in ("---------- CORE ----------", "CORE"):
+            rows.append(DiffRow(is_section=True, section_match=SectionMatch(
+                name, name, ChangeType.UNCHANGED)))
+            rows.append(DiffRow(left_mod={"modName": name}, right_mod={"modName": name}))
+        html_ = render_html(rows, "Old", "New", _summary())
+        values = re.findall(r'<input type="checkbox" value="([^"]*)"> ', html_)
+        self.assertEqual(values[:2], ["---------- core ----------", "core"])
+        self.assertIn('data-sec="---------- core ----------"', html_)
+        self.assertIn('data-sec="core"', html_)
+
+    def test_group_text_matches_display_label_not_identity_key(self):
+        sec = DiffRow(is_section=True, section_match=SectionMatch(
+            "Straße", "Straße", ChangeType.UNCHANGED))
+        row = DiffRow(left_mod={"modName": "A"}, right_mod={"modName": "A"})
+        html_ = render_html([sec, row], "Old", "New", _summary())
+        self.assertIn('data-sec="strasse"', html_)  # identity key is casefolded
+        self.assertIn('data-secl="straße"', html_)  # text match uses .lower()
+        self.assertIn("hits(row.dataset.secl||'',xg)", html_)
+
+    def test_hide_unchanged_counts_as_active_filter(self):
+        self.assertRegex(
+            self.html,
+            r"var active=[^;]*document\.body\.classList\.contains\('hide-unchanged'\)")
+
+    def test_moved_and_updated_mod_keeps_updated_on_both_rows(self):
+        old_mod = {"modName": "Walk", "separatorName": "Old Sec",
+                   "general": {"version": "1.0"}}
+        new_mod = {"modName": "Walk", "separatorName": "New Sec",
+                   "general": {"version": "2.0"}}
+        (_o, _n, change, ov, nv), = classify_mod_changes(
+            [(old_mod, new_mod)], {"old sec": "other"})
+        self.assertEqual(change, ChangeType.MOVED | ChangeType.UPDATED)
+        lookup = {id(old_mod): (new_mod, change, ov, nv),
+                  ("rev", id(new_mod)): (old_mod, change, ov, nv)}
+        out_rows = generate_diff.align_mods_in_section([old_mod], [], lookup)
+        in_rows = generate_diff.align_mods_in_section([], [new_mod], lookup)
+        html_ = render_html(out_rows + in_rows, "Old", "New", _summary())
+        self.assertEqual(html_.count('data-types="moved updated"'), 2)
+        # Outgoing row still renders as a plain move.
+        self.assertIn('class="mod-moved" data-names', html_)
 
 
 class NexusLinkTest(unittest.TestCase):

@@ -69,7 +69,7 @@ def filter_enabled(data):
 
 
 def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
-                min_confidence=0.80, progress=None, base=None):
+                min_confidence=0.80, progress=None, base=None, categories=None):
     """Generate the selected reports from two sides into dest_dir.
 
     Naming matches the CLI: <dest>/<list2.name>/<list1.name>.<type>.<ext>.
@@ -87,6 +87,9 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
     A callback that raises Cancelled aborts the run: the in-progress report
     writes nothing, earlier reports stay, save_exports is skipped, and the
     returned RunResult has cancelled=True.
+
+    categories: optional {id: name} map (MO2 categories.dat) for the diff's
+    category filter.
     """
     result = RunResult()
     # resolve_output_path derives names from paths; hand it synthetic filenames
@@ -131,6 +134,7 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
                 text = generate_diff.generate(
                     list1.data, list2.data, list1.name, list2.name,
                     min_confidence=min_confidence, progress=sub_progress,
+                    categories=categories,
                 )
             elif rtype == "changelog":
                 text = generate_changelog.generate(

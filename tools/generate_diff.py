@@ -15,6 +15,7 @@ Usage:
 import argparse
 import difflib
 import html
+import re
 import sys
 from dataclasses import dataclass, field
 from enum import Flag, auto
@@ -25,6 +26,7 @@ from modlist_utils import (
     extract_mods,
     get_separator_order,
     get_version,
+    load_category_names,
     match_mods,
     resolve_output_path,
     nexus_url,
@@ -64,6 +66,7 @@ class DiffRow:
     new_version: str = ""
     moved_from: str = ""    # section name the mod moved FROM (shown on right)
     moved_to: str = ""      # section name the mod moved TO (shown on left)
+    also_updated: bool = False  # moved-out row whose mod also changed version (filter only)
     is_section: bool = False  # True if this row is a section header
     section_match: Optional[SectionMatch] = None  # set when is_section=True
 
@@ -333,6 +336,7 @@ def align_mods_in_section(old_mods, new_mods, mod_match_lookup):
                 change=ChangeType.MOVED,
                 old_version=old_ver, new_version=new_ver,
                 moved_to=new_mod.get("separatorName", ""),
+                also_updated=ChangeType.UPDATED in change,
             ))
         else:
             # No match — removed
@@ -445,6 +449,7 @@ def build_aligned_diff(old_data, new_data, matched_pairs, added_mods, removed_mo
                         change=ChangeType.MOVED,
                         old_version=old_ver, new_version=new_ver,
                         moved_to=new_mod.get("separatorName", ""),
+                        also_updated=ChangeType.UPDATED in change,
                     ))
                 else:
                     rows.append(DiffRow(left_mod=mod, change=ChangeType.REMOVED))
@@ -631,6 +636,23 @@ td.empty { color: #444; }
 .toggle-btn:hover { background: #16498a; }
 .toggle-btn.active { background: #e94560; border-color: #e94560; color: #fff; }
 
+/* Filter controls: change-type chips + exclusions */
+button.type-chip { border: 0; cursor: pointer; font-family: inherit; }
+button.type-chip:not(.on) { opacity: 0.35; text-decoration: line-through; }
+.ex-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: flex-start; }
+.ex-row .filter-input { width: 200px; padding-right: 10px; }
+details.ex { position: relative; }
+details.ex summary {
+    cursor: pointer; padding: 6px 10px; background: #0f1830; color: #e0e0e0;
+    border: 1px solid #1a4a7a; border-radius: 4px; font-size: 13px; list-style: none;
+}
+.ex-list {
+    position: absolute; top: 100%; left: 0; z-index: 60; min-width: 220px;
+    max-height: 260px; overflow: auto; margin-top: 2px; padding: 6px 10px;
+    background: #0f1830; border: 1px solid #1a4a7a; border-radius: 4px;
+}
+.ex-list label { display: block; padding: 2px 0; white-space: nowrap; cursor: pointer; }
+
 /* When hiding unchanged mods, collapse those rows (section headers stay) */
 body.hide-unchanged tr.mod-unchanged { display: none; }
 """
@@ -654,8 +676,68 @@ def _linked_name(name_html, mod, changed):
     return name_html
 
 
-def render_html(rows, old_name, new_name, summary):
-    """Render the aligned diff as a self-contained HTML file."""
+def _section_label(sm):
+    """Display label of a section header row (matches ``_render_section_row``)."""
+    name = sm.new_name or sm.old_name or ""
+    major = is_major_separator(sm.old_name) or is_major_separator(sm.new_name)
+    return major_display_name(name) if major else name
+
+
+def _categories(row):
+    """Nexus category IDs of a row's mod (new side preferred); ``["none"]`` if blank."""
+    mod = row.right_mod or row.left_mod or {}
+    raw = (mod.get("general") or {}).get("category") or ""
+    return re.findall(r"\d+", str(raw)) or ["none"]
+
+
+def _change_types(change):
+    return [n for n, f in (("added", ChangeType.ADDED), ("removed", ChangeType.REMOVED),
+                           ("moved", ChangeType.MOVED), ("updated", ChangeType.UPDATED))
+            if f in change]
+
+
+def _exclusion_dropdown(cls, label, options):
+    """A checkbox dropdown of (value, display) options; empty when there are none."""
+    if not options:
+        return ""
+    items = "".join(
+        f'<label><input type="checkbox" value="{_esc(v)}"> {_esc(d)}</label>'
+        for v, d in options)
+    return (f'<details class="ex {cls}"><summary data-label="{label}">{label}</summary>'
+            f'<div class="ex-list">{items}</div></details>')
+
+
+def render_html(rows, old_name, new_name, summary, categories=None):
+    """Render the aligned diff as a self-contained HTML file.
+
+    categories: optional ``{id: name}`` (from MO2's categories.dat); when given,
+    the category dropdown and a text filter use names instead of bare IDs.
+    """
+    categories = categories or {}
+    # Pre-pass: each mod row's grouping (nearest section header above it) and the
+    # distinct groupings / categories for the exclusion dropdowns.
+    groupings, cat_ids, row_sec = {}, set(), []
+    cur_sec = ("unsectioned", "Unsectioned", "Unsectioned")
+    for row in rows:
+        if row.is_section:
+            if row.section_match:
+                sm = row.section_match
+                # Identity key from the raw name, so "---- CORE ----" and "CORE"
+                # stay distinct groups; the stripped label is display-only.
+                raw = sm.new_name or sm.old_name or ""
+                cur_sec = (name_key(raw), raw, _section_label(sm))
+        else:
+            groupings.setdefault(cur_sec[0], cur_sec[1])
+            cat_ids.update(_categories(row))
+        row_sec.append((cur_sec[0], cur_sec[2]))
+    def cat_label(c):
+        return "(none)" if c == "none" else categories.get(c, c)
+
+    cat_options = sorted(
+        cat_ids,
+        key=lambda c: (c == "none", cat_label(c).casefold() if categories else 0,
+                       int(c) if c.isdigit() else 0))
+
     parts = []
     parts.append("<!DOCTYPE html>")
     parts.append('<html lang="en">')
@@ -678,10 +760,13 @@ def render_html(rows, old_name, new_name, summary):
 
     # Summary stats
     parts.append('<div class="summary">')
-    parts.append(f'<span class="stat stat-added">+{summary["added"]} added</span>')
-    parts.append(f'<span class="stat stat-removed">&minus;{summary["removed"]} removed</span>')
-    parts.append(f'<span class="stat stat-moved">&harr; {summary["moved"]} moved</span>')
-    parts.append(f'<span class="stat stat-updated">&uarr; {summary["updated"]} updated</span>')
+    # The four change-type stats double as on/off toggles for the filter.
+    for t, text in (("added", f'+{summary["added"]} added'),
+                    ("removed", f'&minus;{summary["removed"]} removed'),
+                    ("moved", f'&harr; {summary["moved"]} moved'),
+                    ("updated", f'&uarr; {summary["updated"]} updated')):
+        parts.append(f'<button type="button" class="stat stat-{t} type-chip on" '
+                     f'data-type="{t}" title="Click to show/hide {t} mods">{text}</button>')
     sec_changes = summary["sections_added"] + summary["sections_removed"] + summary["sections_renamed"]
     if sec_changes:
         parts.append(f'<span class="stat stat-sections">{sec_changes} section changes</span>')
@@ -693,6 +778,20 @@ def render_html(rows, old_name, new_name, summary):
         '<button type="button" id="filter-clear" class="filter-clear" '
         'aria-label="Clear filter" hidden>&times;</button>'
         '</div>'
+    )
+    # Exclusions: comma-separated text (any term hides) and/or checkbox dropdowns.
+    parts.append(
+        '<div class="ex-row">'
+        '<input type="search" id="ex-mods" class="filter-input" autocomplete="off" '
+        'placeholder="Hide mods matching… (a, b)">'
+        '<input type="search" id="ex-groups" class="filter-input" autocomplete="off" '
+        'placeholder="Hide groups matching… (a, b)">'
+        + ('<input type="search" id="ex-cats" class="filter-input" autocomplete="off" '
+           'placeholder="Hide categories matching… (a, b)">' if categories else "")
+        + _exclusion_dropdown("ex-sec", "Groups", list(groupings.items()))
+        + _exclusion_dropdown("ex-cat", "Categories",
+                              [(c, cat_label(c)) for c in cat_options])
+        + '</div>'
     )
     parts.append("</div>")
 
@@ -707,11 +806,11 @@ def render_html(rows, old_name, new_name, summary):
     # Diff table
     parts.append('<table class="diff-table"><tbody>')
 
-    for row in rows:
+    for row, sec in zip(rows, row_sec):
         if row.is_section:
             _render_section_row(parts, row)
         else:
-            _render_mod_row(parts, row)
+            _render_mod_row(parts, row, sec[0], categories, sec[1])
 
     parts.append("</tbody></table>")
 
@@ -727,14 +826,29 @@ def render_html(rows, old_name, new_name, summary):
         " }"
     )
     parts.append(
+        "function csv(id){var e=document.getElementById(id);"
+        "return e?e.value.toLowerCase().split(',').map(function(s){return s.trim();}).filter(Boolean):[];}"
+        "function ticked(c){return Array.prototype.map.call("
+        "document.querySelectorAll('.'+c+' input:checked'),function(i){return i.value;});}"
+        "function hits(s,l){return l.some(function(t){return s.indexOf(t)!==-1;});}"
         "function filterMods(q){"
         "var terms=(q||'').trim().toLowerCase().split(/\\s+/).filter(Boolean);"
+        "var off=Array.prototype.map.call(document.querySelectorAll('.type-chip:not(.on)'),"
+        "function(c){return c.getAttribute('data-type');});"
+        "var xm=csv('ex-mods'),xg=csv('ex-groups'),xs=ticked('ex-sec'),xc=ticked('ex-cat'),xk=csv('ex-cats');"
+        "var active=terms.length>0||off.length>0||xm.length>0||xg.length>0||xs.length>0||xc.length>0||xk.length>0||document.body.classList.contains('hide-unchanged');"
         "document.querySelectorAll('[data-names]').forEach(function(row){"
-        "var hide=false;"
-        "if(terms.length){var names=row.getAttribute('data-names').split('\\n');"
-        "hide=!names.some(function(n){return terms.every(function(t){return n.indexOf(t)!==-1;});});}"
+        "var hide=false,names=row.getAttribute('data-names').split('\\n');"
+        "if(terms.length)hide=!names.some(function(n){return terms.every(function(t){return n.indexOf(t)!==-1;});});"
+        "if(!hide&&xm.length)hide=names.some(function(n){return hits(n,xm);});"
+        "var t=row.dataset.types;"
+        "if(!hide&&t&&off.length)hide=t.split(' ').every(function(x){return off.indexOf(x)>-1;});"
+        "var sec=row.dataset.sec||'';"
+        "if(!hide)hide=hits(row.dataset.secl||'',xg)||xs.indexOf(sec)>-1;"
+        "if(!hide&&xc.length)hide=(row.dataset.cat||'').split(' ').some(function(c){return xc.indexOf(c)>-1;});"
+        "if(!hide&&xk.length)hide=(row.dataset.catn||'').split('\\n').some(function(n){return hits(n,xk);});"
         "row.classList.toggle('filter-hidden',hide);});"
-        "applySectionVisibility(terms.length>0);}"
+        "applySectionVisibility(active);}"
         "function rowCounts(row){"
         "if(row.classList.contains('filter-hidden'))return false;"
         "if(document.body.classList.contains('hide-unchanged')&&row.classList.contains('mod-unchanged'))return false;"
@@ -760,6 +874,15 @@ def render_html(rows, old_name, new_name, summary):
         "i.addEventListener('keydown',function(e){if(e.key==='Escape'){this.value='';filterMods('');sync();}});"
         "if(c)c.addEventListener('click',function(){i.value='';filterMods('');sync();i.focus();});"
         "sync();})();"
+        # Chips, exclusion inputs and dropdown checkboxes all just re-run the filter.
+        "document.querySelectorAll('.type-chip').forEach(function(c){"
+        "c.addEventListener('click',function(){c.classList.toggle('on');refilter();});});"
+        "['ex-mods','ex-groups','ex-cats'].forEach(function(id){var e=document.getElementById(id);"
+        "if(e)e.addEventListener('input',refilter);});"
+        "document.querySelectorAll('details.ex').forEach(function(d){"
+        "d.addEventListener('change',function(){"
+        "var n=d.querySelectorAll('input:checked').length,s=d.querySelector('summary');"
+        "s.textContent=s.getAttribute('data-label')+(n?' ('+n+')':'');refilter();});});"
     )
     parts.append("</script>")
 
@@ -807,8 +930,9 @@ def _render_section_row(parts, row):
     parts.append("</tr>")
 
 
-def _render_mod_row(parts, row):
-    """Render a mod diff row."""
+def _render_mod_row(parts, row, sec="", cat_names=None, sec_label=""):
+    """Render a mod diff row; ``sec`` is its grouping's ``name_key`` and
+    ``sec_label`` its display label (matched by the Hide-groups text box)."""
     change = row.change
 
     # Determine row CSS class
@@ -832,7 +956,16 @@ def _render_mod_row(parts, row):
             if nl not in names:  # dedup: unchanged rows have the same name twice
                 names.append(nl)
     data_names = _esc("\n".join(names))
-    parts.append(f'<tr class="{cls}" data-names="{data_names}">')
+    # A moved-out row of a mod that also changed version still counts as updated.
+    types = " ".join(_change_types(change | ChangeType.UPDATED if row.also_updated else change))
+    types_attr = f' data-types="{types}"' if types else ""
+    cats = _categories(row)
+    catn_attr = ""
+    if cat_names:
+        catn = "\n".join(cat_names[c].lower() for c in cats if c in cat_names)
+        catn_attr = f' data-catn="{_esc(catn)}"'
+    parts.append(f'<tr class="{cls}" data-names="{data_names}"{types_attr} '
+                 f'data-sec="{_esc(sec)}" data-secl="{_esc(sec_label.lower())}" data-cat="{" ".join(cats)}"{catn_attr}>')
 
     # Changed rows link the mod name to its Nexus page; unchanged rows stay plain.
     changed = change != ChangeType.UNCHANGED
@@ -869,11 +1002,12 @@ def _render_mod_row(parts, row):
 # ---------------------------------------------------------------------------
 
 def generate(old_data, new_data, old_name, new_name, min_confidence=0.80,
-             progress=None):
+             progress=None, categories=None):
     """Library entry point: render the side-by-side diff for loaded modlist data.
 
     Pure data-in -> HTML-out; callers own all file IO and output naming.
     progress is forwarded to match_mods - see modlist_utils.match_mods.
+    categories is an optional ``{id: name}`` map (see load_category_names).
     """
     old_mods = extract_mods(old_data)
     new_mods = extract_mods(new_data)
@@ -896,7 +1030,7 @@ def generate(old_data, new_data, old_name, new_name, min_confidence=0.80,
         mod_changes, added_mods, removed_mods,
         section_matches, added_sections, removed_sections,
     )
-    return render_html(rows, old_name, new_name, summary)
+    return render_html(rows, old_name, new_name, summary, categories)
 
 
 # ---------------------------------------------------------------------------
@@ -920,6 +1054,11 @@ def main():
         default=0.80,
         help="Minimum confidence for fuzzy name matching (default: 0.80)",
     )
+    parser.add_argument(
+        "--categories",
+        help="MO2 categories.dat (instance folder): show category names, not IDs, "
+             "in the report's category filter.",
+    )
     args = parser.parse_args()
 
     # Load data
@@ -931,9 +1070,10 @@ def main():
     old_name = os.path.splitext(os.path.basename(args.old_list))[0]
     new_name = os.path.splitext(os.path.basename(args.new_list))[0]
 
+    categories = load_category_names(args.categories) if args.categories else None
     html_output = generate(
         old_data, new_data, old_name, new_name,
-        min_confidence=args.min_confidence,
+        min_confidence=args.min_confidence, categories=categories,
     )
 
     out_path = resolve_output_path(args.output, args.old_list, args.new_list, "diff", "html")
