@@ -19,6 +19,9 @@ updates.
   base update (the CLI's `--base` mode), written as
   `<List 1> (from <Previous base>).rebase.html`. A run is refused when exporting a
   profile would overwrite the Previous base file.
+- **Only compare enabled mods** option in Generate Reports (off by default): drops
+  disabled mods from every side and the Previous base, so mods used only by another
+  profile are not counted as present. Saved profile exports are filtered too.
 
 ### Changed
 

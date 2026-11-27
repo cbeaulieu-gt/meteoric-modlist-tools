@@ -392,5 +392,54 @@ class TestValidateRun(unittest.TestCase):
             report_runner.ListSide("B", []), ["diff"]))
 
 
+class TestFilterEnabled(unittest.TestCase):
+    @staticmethod
+    def _items():
+        return [
+            {"type": "separator", "modName": "Sep", "order": 0, "active": True},
+            {"modName": "On", "order": 1, "active": True},
+            {"modName": "Off", "order": 2, "active": False},
+            {"modName": "NoKey", "order": 3},
+            {"type": "separator", "modName": "Sep2", "order": 4, "active": True},
+            {"modName": "Off2", "order": 5, "active": False},
+            {"modName": "Last", "order": 6, "active": True},
+        ]
+
+    def test_drops_only_explicitly_inactive(self):
+        out = report_runner.filter_enabled(self._items())
+        self.assertEqual(
+            [i["modName"] for i in out],
+            ["Sep", "On", "NoKey", "Sep2", "Last"],
+        )
+
+    def test_keeps_separator_even_if_marked_inactive(self):
+        data = [{"type": "separator", "modName": "S", "order": 0, "active": False}]
+        self.assertEqual(len(report_runner.filter_enabled(data)), 1)
+
+    def test_missing_or_non_false_active_kept(self):
+        data = [
+            {"modName": "a", "order": 0},
+            {"modName": "b", "order": 1, "active": None},
+            {"modName": "c", "order": 2, "active": 0},
+        ]
+        self.assertEqual(len(report_runner.filter_enabled(data)), 3)
+
+    def test_input_not_mutated(self):
+        data = self._items()
+        snapshot = json.loads(json.dumps(data))
+        out = report_runner.filter_enabled(data)
+        self.assertEqual(data, snapshot)
+        self.assertIsNot(out, data)
+        for item in out:
+            self.assertFalse(any(item is orig for orig in data))
+
+    def test_order_renumbered_contiguously(self):
+        out = report_runner.filter_enabled(self._items())
+        self.assertEqual([i["order"] for i in out], list(range(len(out))))
+
+    def test_empty(self):
+        self.assertEqual(report_runner.filter_enabled([]), [])
+
+
 if __name__ == "__main__":
     unittest.main()

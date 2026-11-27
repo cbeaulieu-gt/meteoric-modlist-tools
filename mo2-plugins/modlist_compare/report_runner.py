@@ -50,6 +50,24 @@ def load_side_from_file(path):
     return ListSide(name=name, data=data, from_profile=False)
 
 
+def filter_enabled(data):
+    """Return a copy of an export without mods explicitly marked disabled.
+
+    All MO2 profiles share one mods/ folder, so every profile's export lists
+    every installed mod, disabled where that profile does not use it. Items
+    with ``active`` exactly False are dropped; separators and items with no
+    ``active`` key (missing means enabled) are kept. Kept items are copied and
+    their ``order`` renumbered 0..n-1; the input is not mutated.
+    """
+    kept = [
+        dict(item) for item in data
+        if item.get("type") == "separator" or item.get("active") is not False
+    ]
+    for index, item in enumerate(kept):
+        item["order"] = index
+    return kept
+
+
 def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
                 min_confidence=0.80, progress=None, base=None):
     """Generate the selected reports from two sides into dest_dir.

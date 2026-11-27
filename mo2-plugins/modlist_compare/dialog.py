@@ -236,6 +236,8 @@ class GenerateReportsDialog(QDialog):
         for rtype, box in self._report_boxes.items():
             box.setChecked(rtype in chosen)
         self._save_export_box.setChecked(str(self._get("save_export", "true")) == "true")
+        self._enabled_only_box.setChecked(
+            str(self._get("enabled_only", "false")) == "true")
         self._side1.select_token(str(self._get("side1", "")))
         self._side2.select_token(str(self._get("side2", "")))
 
@@ -245,6 +247,8 @@ class GenerateReportsDialog(QDialog):
             r for r, box in self._report_boxes.items() if box.isChecked()
         ))
         self._set("save_export", "true" if self._save_export_box.isChecked() else "false")
+        self._set("enabled_only",
+                  "true" if self._enabled_only_box.isChecked() else "false")
         self._set("side1", self._side1.token())
         self._set("side2", self._side2.token())
 
@@ -333,6 +337,16 @@ class GenerateReportsDialog(QDialog):
         )
         grid.addWidget(self._save_export_box, 7, 0, 1, 4)
 
+        self._enabled_only_box = QCheckBox("Only compare enabled mods")
+        self._enabled_only_box.setToolTip(
+            "All MO2 profiles share one mods folder, so a profile's list also "
+            "contains the mods only other profiles use, marked disabled. "
+            "Ticking this ignores disabled mods on every side (and the "
+            "Previous base), so they are not counted as present. Saved "
+            "profile exports contain the filtered list too."
+        )
+        grid.addWidget(self._enabled_only_box, 8, 0, 1, 4)
+
         buttons = QHBoxLayout()
         generate_btn = QPushButton("Generate")
         generate_btn.setDefault(True)
@@ -342,7 +356,7 @@ class GenerateReportsDialog(QDialog):
         buttons.addStretch()
         buttons.addWidget(generate_btn)
         buttons.addWidget(cancel_btn)
-        grid.addLayout(buttons, 8, 0, 1, 4)
+        grid.addLayout(buttons, 9, 0, 1, 4)
 
     def _browse_side(self, side):
         start = str(self._get("browse_dir", ""))
@@ -383,6 +397,12 @@ class GenerateReportsDialog(QDialog):
         return (os.path.normcase(os.path.abspath(a))
                 == os.path.normcase(os.path.abspath(b)))
 
+    def _apply_enabled_filter(self, data):
+        """Drop disabled mods from data when "Only compare enabled mods" is on."""
+        if self._enabled_only_box.isChecked():
+            return report_runner.filter_enabled(data)
+        return data
+
     def _resolve_side(self, label, picker):
         """Return a ListSide, or None after warning the user."""
         kind, name = picker.selection()
@@ -390,7 +410,8 @@ class GenerateReportsDialog(QDialog):
             # Unhandled exceptions escaping a Qt slot go through qFatal() and
             # abort MO2, so the profile export is guarded like the file branch.
             try:
-                data = exporter_core.export_profile(self._organizer, name)
+                data = self._apply_enabled_filter(
+                    exporter_core.export_profile(self._organizer, name))
             except Exception as e:
                 self._warn(
                     f"{label}: could not export profile '{name}'\n\n{e}"
@@ -402,7 +423,9 @@ class GenerateReportsDialog(QDialog):
             self._warn(f"{label}: choose a JSON file (or pick a profile).")
             return None
         try:
-            return report_runner.load_side_from_file(path)
+            side = report_runner.load_side_from_file(path)
+            side.data = self._apply_enabled_filter(side.data)
+            return side
         except Exception as e:
             self._warn(f"{label}: could not load\n{path}\n\n{e}")
             return None
@@ -436,6 +459,7 @@ class GenerateReportsDialog(QDialog):
                 return
             try:
                 base = report_runner.load_side_from_file(base_path)
+                base.data = self._apply_enabled_filter(base.data)
             except Exception as e:
                 self._warn(f"Previous base: could not load\n{base_path}\n\n{e}")
                 return

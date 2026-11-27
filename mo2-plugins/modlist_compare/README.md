@@ -56,10 +56,16 @@ Opens a dialog:
 - **Destination folder** — where the reports are written.
 - **Save profile exports as JSON** — also drop each profile side's export in the destination
   folder, so the comparison is reproducible later (and usable as a Previous base).
+- **Only compare enabled mods** *(optional, off by default)* — all MO2 profiles share one
+  `mods/` folder, so every profile's list also contains the mods only other profiles use, marked
+  disabled, and the reports would count them as present. Ticking this drops disabled mods
+  (separators are kept) from every side and from the Previous base before anything is compared.
+  Because the filter is applied first, exports saved by **Save profile exports as JSON** contain
+  the filtered list too.
 
 **Generate** writes the files and reports what was written (a per-report failure is listed as an
 error; the other reports still run). **Open Folder** in the result dialog opens the destination.
-All dialog settings — destination, selected report types, the save-export checkbox, the last
+All dialog settings — destination, selected report types, the save-export and enabled-only checkboxes, the last
 browse folder — persist across MO2 restarts.
 
 While reports generate, a progress dialog shows live percent and which report is running; MO2
