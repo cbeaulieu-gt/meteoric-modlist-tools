@@ -49,7 +49,8 @@ def read_meta_ini(mod_path):
     if not os.path.exists(meta_ini_path):
         return general_data, installed_files_data
     try:
-        config = configparser.ConfigParser()
+        # interpolation=None: values such as "100% Texture.7z" are literal.
+        config = configparser.ConfigParser(interpolation=None)
         config.read(meta_ini_path, encoding='utf-8')
         if 'General' in config:
             section = config['General']
@@ -197,7 +198,7 @@ def export_profile_from_files(profile_dir, mods_path):
         mod_path = os.path.join(mods_path, mod_name)
         if not os.path.isdir(mod_path):
             continue
-        if mod_name.casefold().endswith("_separator"):
+        if mod_name.endswith("_separator"):
             item = make_separator_item(mod_name, len(items))
             current_separator = item["separatorName"]
             items.append(item)

@@ -57,8 +57,9 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
     Naming matches the CLI: <dest>/<list2.name>/<list1.name>.<type>.<ext>.
     The rebase report (coverage in base-update mode) uses list1 as source,
     list2 as target and base as the previous base list; it is named
-    <list1.name> (from <base.name>).rebase.html and reports no sub-progress, only a single
-    checkpoint call right after generation (so Cancel is still honoured).
+    <list1.name> (from <base.name>).rebase.html and reports no sub-progress.
+    A progress checkpoint follows every report's generation (before it is
+    written), so Cancel is honoured for every report type.
     Coverage and rebase read <dest>/<list2.name>/.coverage-ignore.txt like a static run.
     Per-report failures land in RunResult.errors; the rest still run.
 
@@ -108,10 +109,6 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
                     min_confidence=min_confidence, ignore=ignore,
                     base_data=base.data, base_name=base.name,
                 )
-                # Base mode has no sub-progress; this is its only cancel
-                # checkpoint after the (uninterruptible) generation.
-                if progress is not None:
-                    progress((i + 1) / count, message)
             elif rtype == "diff":
                 text = generate_diff.generate(
                     list1.data, list2.data, list1.name, list2.name,
@@ -124,6 +121,10 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
                 )
             else:
                 raise ValueError(f"unknown report type: {rtype}")
+            # Post-generation cancel checkpoint for every report type, before
+            # anything is written (base mode has no sub-progress at all).
+            if progress is not None:
+                progress((i + 1) / count, message)
             out_path = modlist_utils.resolve_output_path(
                 dest, first, second, rtype, _EXTENSIONS[rtype],
                 first_name=(f"{list1.name} (from {base.name})"

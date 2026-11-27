@@ -45,6 +45,14 @@ class TestReadMetaIni(unittest.TestCase):
         self.assertEqual(installed["size"], 1)
         self.assertEqual(installed["files"][0], {"modid": "123", "fileid": "456"})
 
+    def test_percent_in_values_is_read_literally(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with open(os.path.join(tmp, "meta.ini"), "w", encoding="utf-8") as f:
+                f.write("[General]\nmodid=77\ninstallationFile=100% Texture.7z\n")
+            general, _installed = exporter_core.read_meta_ini(tmp)
+        self.assertEqual(general["modid"], "77")
+        self.assertEqual(general["installationFile"], "100% Texture.7z")
+
     def test_missing_meta_ini(self):
         with tempfile.TemporaryDirectory() as tmp:
             general, installed = exporter_core.read_meta_ini(tmp)
@@ -108,6 +116,27 @@ class TestExportProfileFromFiles(unittest.TestCase):
         self.assertEqual(items[1]["plugins"], ["a.esp"])
         self.assertIs(items[1]["active"], True)
         self.assertEqual(items[1]["order"], 1)
+
+    def test_percent_in_meta_ini_keeps_the_modid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "+Mod A\n", ["Mod A"])
+            _write(
+                os.path.join(mods, "Mod A", "meta.ini"),
+                "[General]\nmodid=77\ninstallationFile=100% Texture.7z\n",
+            )
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual(items[0]["id"], 77)
+
+    def test_separator_suffix_is_case_sensitive_like_the_live_export(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(
+                tmp, "+Tools_SEPARATOR\n+X_separator\n",
+                ["Tools_SEPARATOR", "X_separator"],
+            )
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual([i["type"] for i in items], ["separator", "mod"])
+        self.assertEqual(items[0]["separatorName"], "X")
+        self.assertEqual(items[1]["modName"], "Tools_SEPARATOR")
 
     def test_mod_without_modid_uses_clean_name_as_id(self):
         with tempfile.TemporaryDirectory() as tmp:

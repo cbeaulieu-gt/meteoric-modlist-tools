@@ -212,6 +212,46 @@ class RunReportsProgressTest(unittest.TestCase):
             )
 
 
+class TestCancelEveryReportType(unittest.TestCase):
+    def test_cancel_on_second_call_discards_report(self):
+        for rtype in ("coverage", "diff", "changelog"):
+            with self.subTest(rtype=rtype):
+                calls = []
+
+                def cancel_on_second_call(fraction, message):
+                    calls.append(fraction)
+                    if len(calls) == 2:
+                        raise report_runner.Cancelled()
+
+                with tempfile.TemporaryDirectory() as tmp:
+                    result = report_runner.run_reports(
+                        _side(NEW_LIST), _side(OLD_LIST), [rtype], tmp,
+                        save_exports=False, progress=cancel_on_second_call,
+                    )
+                    self.assertTrue(result.cancelled)
+                    self.assertEqual(result.written, [])
+                    self.assertEqual(result.errors, [])
+                    leftovers = [
+                        n for _r, _d, files in os.walk(tmp) for n in files
+                    ]
+                    self.assertEqual(leftovers, [])
+
+    def test_post_generation_checkpoint_is_the_last_call(self):
+        # With a single report the final call must be the 1.0 checkpoint
+        # that follows generation, for every type.
+        for rtype in ("coverage", "diff", "changelog"):
+            with self.subTest(rtype=rtype):
+                calls = []
+                with tempfile.TemporaryDirectory() as tmp:
+                    report_runner.run_reports(
+                        _side(NEW_LIST), _side(OLD_LIST), [rtype], tmp,
+                        save_exports=False,
+                        progress=lambda f, m: calls.append(f),
+                    )
+                self.assertEqual(calls[-1], 1.0)
+                self.assertEqual(calls, sorted(calls))
+
+
 class TestRebase(unittest.TestCase):
     def test_rebase_writes_cli_named_report(self):
         with tempfile.TemporaryDirectory() as tmp:
