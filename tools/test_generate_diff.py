@@ -143,6 +143,20 @@ class FilterControlsTest(unittest.TestCase):
         self.assertIn('<input type="checkbox" value="2">', self.html)
         self.assertIn('<input type="checkbox" value="none">', self.html)
 
+    def test_category_names(self):
+        sec = DiffRow(is_section=True, section_match=SectionMatch("S", "S", ChangeType.UNCHANGED))
+        row = DiffRow(left_mod={"modName": "Walk", "general": {"category": '"5,"'}},
+                      right_mod={"modName": "Walk", "general": {"category": '"5,"'}})
+        names = {"5": "Animations"}
+        html_ = render_html([sec, row], "Old", "New", _summary(), names)
+        self.assertIn('<input type="checkbox" value="5"> Animations</label>', html_)
+        self.assertIn('id="ex-cats"', html_)
+        self.assertIn('data-catn="animations"', html_)
+        plain = render_html([sec, row], "Old", "New", _summary())
+        self.assertNotIn('id="ex-cats"', plain)
+        self.assertNotIn("data-catn", plain)
+        self.assertIn('<input type="checkbox" value="5"> 5</label>', plain)
+
     def test_no_dropdown_without_data(self):
         self.assertNotIn('class="ex-list"', render_html([], "Old", "New", _summary()))
 

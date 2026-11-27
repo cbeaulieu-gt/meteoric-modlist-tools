@@ -154,7 +154,7 @@ python tools/generate_diff.py OLD.json NEW.json -o output/
 ```
 
 **Arguments:** `old_list`, `new_list` (positional) · `-o/--output`
-(auto-names `<dir>/<new_list>/<old_list>.diff.html`) · `--min-confidence`.
+(auto-names `<dir>/<new_list>/<old_list>.diff.html`) · `--min-confidence` · `--categories`.
 
 Color coding: green added, red removed, blue moved, orange updated, gray unchanged. Section
 headers are matched by a waterfall (exact name → which new section most of an old section's
@@ -165,8 +165,9 @@ section removed and another added.
 the four summary chips (added / removed / moved / updated) toggle change types — a moved + updated
 mod stays while either is on; **Hide mods** / **Hide groups** take comma-separated text (any term
 hides, case-insensitive substring; groups match the separator name); **Groups** and **Categories**
-dropdowns hide by checkbox. Categories are Nexus category IDs (the export carries no names), `(none)`
-for blank. A mod's group is the separator above it, so hiding a major band hides only mods directly
+dropdowns hide by checkbox. Categories are MO2 category IDs (the export carries no names), `(none)`
+for blank. Pass `--categories <instance>/categories.dat` (MO2's ID→name map) to show names instead
+and add a **Hide categories** text box; the plugin finds that file itself. A mod's group is the separator above it, so hiding a major band hides only mods directly
 under it. Sections left empty collapse while any filter is active.
 
 ## Coverage states

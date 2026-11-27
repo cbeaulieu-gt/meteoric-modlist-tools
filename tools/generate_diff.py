@@ -26,6 +26,7 @@ from modlist_utils import (
     extract_mods,
     get_separator_order,
     get_version,
+    load_category_names,
     match_mods,
     resolve_output_path,
     nexus_url,
@@ -703,11 +704,16 @@ def _exclusion_dropdown(cls, label, options):
             f'<div class="ex-list">{items}</div></details>')
 
 
-def render_html(rows, old_name, new_name, summary):
-    """Render the aligned diff as a self-contained HTML file."""
+def render_html(rows, old_name, new_name, summary, categories=None):
+    """Render the aligned diff as a self-contained HTML file.
+
+    categories: optional ``{id: name}`` (from MO2's categories.dat); when given,
+    the category dropdown and a text filter use names instead of bare IDs.
+    """
+    categories = categories or {}
     # Pre-pass: each mod row's grouping (nearest section header above it) and the
     # distinct groupings / categories for the exclusion dropdowns.
-    groupings, categories, row_sec = {}, set(), []
+    groupings, cat_ids, row_sec = {}, set(), []
     cur_sec = ("unsectioned", "Unsectioned")
     for row in rows:
         if row.is_section:
@@ -716,9 +722,15 @@ def render_html(rows, old_name, new_name, summary):
                 cur_sec = (name_key(label), label)
         else:
             groupings.setdefault(*cur_sec)
-            categories.update(_categories(row))
+            cat_ids.update(_categories(row))
         row_sec.append(cur_sec[0])
-    cat_options = sorted(categories, key=lambda c: (c == "none", int(c) if c.isdigit() else 0))
+    def cat_label(c):
+        return "(none)" if c == "none" else categories.get(c, c)
+
+    cat_options = sorted(
+        cat_ids,
+        key=lambda c: (c == "none", cat_label(c).casefold() if categories else 0,
+                       int(c) if c.isdigit() else 0))
 
     parts = []
     parts.append("<!DOCTYPE html>")
@@ -768,9 +780,11 @@ def render_html(rows, old_name, new_name, summary):
         'placeholder="Hide mods matching… (a, b)">'
         '<input type="search" id="ex-groups" class="filter-input" autocomplete="off" '
         'placeholder="Hide groups matching… (a, b)">'
+        + ('<input type="search" id="ex-cats" class="filter-input" autocomplete="off" '
+           'placeholder="Hide categories matching… (a, b)">' if categories else "")
         + _exclusion_dropdown("ex-sec", "Groups", list(groupings.items()))
         + _exclusion_dropdown("ex-cat", "Categories",
-                              [(c, "(none)" if c == "none" else c) for c in cat_options])
+                              [(c, cat_label(c)) for c in cat_options])
         + '</div>'
     )
     parts.append("</div>")
@@ -790,7 +804,7 @@ def render_html(rows, old_name, new_name, summary):
         if row.is_section:
             _render_section_row(parts, row)
         else:
-            _render_mod_row(parts, row, sec)
+            _render_mod_row(parts, row, sec, categories)
 
     parts.append("</tbody></table>")
 
@@ -815,8 +829,8 @@ def render_html(rows, old_name, new_name, summary):
         "var terms=(q||'').trim().toLowerCase().split(/\\s+/).filter(Boolean);"
         "var off=Array.prototype.map.call(document.querySelectorAll('.type-chip:not(.on)'),"
         "function(c){return c.getAttribute('data-type');});"
-        "var xm=csv('ex-mods'),xg=csv('ex-groups'),xs=ticked('ex-sec'),xc=ticked('ex-cat');"
-        "var active=terms.length>0||off.length>0||xm.length>0||xg.length>0||xs.length>0||xc.length>0;"
+        "var xm=csv('ex-mods'),xg=csv('ex-groups'),xs=ticked('ex-sec'),xc=ticked('ex-cat'),xk=csv('ex-cats');"
+        "var active=terms.length>0||off.length>0||xm.length>0||xg.length>0||xs.length>0||xc.length>0||xk.length>0;"
         "document.querySelectorAll('[data-names]').forEach(function(row){"
         "var hide=false,names=row.getAttribute('data-names').split('\\n');"
         "if(terms.length)hide=!names.some(function(n){return terms.every(function(t){return n.indexOf(t)!==-1;});});"
@@ -826,6 +840,7 @@ def render_html(rows, old_name, new_name, summary):
         "var sec=row.dataset.sec||'';"
         "if(!hide)hide=hits(sec,xg)||xs.indexOf(sec)>-1;"
         "if(!hide&&xc.length)hide=(row.dataset.cat||'').split(' ').some(function(c){return xc.indexOf(c)>-1;});"
+        "if(!hide&&xk.length)hide=(row.dataset.catn||'').split('\\n').some(function(n){return hits(n,xk);});"
         "row.classList.toggle('filter-hidden',hide);});"
         "applySectionVisibility(active);}"
         "function rowCounts(row){"
@@ -856,7 +871,7 @@ def render_html(rows, old_name, new_name, summary):
         # Chips, exclusion inputs and dropdown checkboxes all just re-run the filter.
         "document.querySelectorAll('.type-chip').forEach(function(c){"
         "c.addEventListener('click',function(){c.classList.toggle('on');refilter();});});"
-        "['ex-mods','ex-groups'].forEach(function(id){var e=document.getElementById(id);"
+        "['ex-mods','ex-groups','ex-cats'].forEach(function(id){var e=document.getElementById(id);"
         "if(e)e.addEventListener('input',refilter);});"
         "document.querySelectorAll('details.ex').forEach(function(d){"
         "d.addEventListener('change',function(){"
@@ -909,7 +924,7 @@ def _render_section_row(parts, row):
     parts.append("</tr>")
 
 
-def _render_mod_row(parts, row, sec=""):
+def _render_mod_row(parts, row, sec="", cat_names=None):
     """Render a mod diff row; ``sec`` is its grouping's ``name_key``."""
     change = row.change
 
@@ -936,8 +951,13 @@ def _render_mod_row(parts, row, sec=""):
     data_names = _esc("\n".join(names))
     types = " ".join(_change_types(change))
     types_attr = f' data-types="{types}"' if types else ""
+    cats = _categories(row)
+    catn_attr = ""
+    if cat_names:
+        catn = "\n".join(cat_names[c].lower() for c in cats if c in cat_names)
+        catn_attr = f' data-catn="{_esc(catn)}"'
     parts.append(f'<tr class="{cls}" data-names="{data_names}"{types_attr} '
-                 f'data-sec="{_esc(sec)}" data-cat="{" ".join(_categories(row))}">')
+                 f'data-sec="{_esc(sec)}" data-cat="{" ".join(cats)}"{catn_attr}>')
 
     # Changed rows link the mod name to its Nexus page; unchanged rows stay plain.
     changed = change != ChangeType.UNCHANGED
@@ -974,11 +994,12 @@ def _render_mod_row(parts, row, sec=""):
 # ---------------------------------------------------------------------------
 
 def generate(old_data, new_data, old_name, new_name, min_confidence=0.80,
-             progress=None):
+             progress=None, categories=None):
     """Library entry point: render the side-by-side diff for loaded modlist data.
 
     Pure data-in -> HTML-out; callers own all file IO and output naming.
     progress is forwarded to match_mods - see modlist_utils.match_mods.
+    categories is an optional ``{id: name}`` map (see load_category_names).
     """
     old_mods = extract_mods(old_data)
     new_mods = extract_mods(new_data)
@@ -1001,7 +1022,7 @@ def generate(old_data, new_data, old_name, new_name, min_confidence=0.80,
         mod_changes, added_mods, removed_mods,
         section_matches, added_sections, removed_sections,
     )
-    return render_html(rows, old_name, new_name, summary)
+    return render_html(rows, old_name, new_name, summary, categories)
 
 
 # ---------------------------------------------------------------------------
@@ -1025,6 +1046,11 @@ def main():
         default=0.80,
         help="Minimum confidence for fuzzy name matching (default: 0.80)",
     )
+    parser.add_argument(
+        "--categories",
+        help="MO2 categories.dat (instance folder): show category names, not IDs, "
+             "in the report's category filter.",
+    )
     args = parser.parse_args()
 
     # Load data
@@ -1036,9 +1062,10 @@ def main():
     old_name = os.path.splitext(os.path.basename(args.old_list))[0]
     new_name = os.path.splitext(os.path.basename(args.new_list))[0]
 
+    categories = load_category_names(args.categories) if args.categories else None
     html_output = generate(
         old_data, new_data, old_name, new_name,
-        min_confidence=args.min_confidence,
+        min_confidence=args.min_confidence, categories=categories,
     )
 
     out_path = resolve_output_path(args.output, args.old_list, args.new_list, "diff", "html")

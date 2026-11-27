@@ -68,7 +68,7 @@ Contains metadata from the mod's `meta.ini` file, `[General]` section:
   "modid": "string",           // Nexus mod ID as string (e.g., "12345"), or empty string
   "version": "string",         // Mod version (e.g., "2.1.0.0")
   "newestVersion": "string",   // Latest known version
-  "category": "string",        // Nexus category ID (may be quoted, e.g., "\"42,\"")
+  "category": "string",        // MO2 category ID(s) from meta.ini (may be quoted, e.g., "\"42,\"")
   "installationFile": "string" // Original archive filename
 }
 ```

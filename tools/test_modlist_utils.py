@@ -24,6 +24,21 @@ from modlist_utils import (
 )
 
 
+class CategoryNamesTest(unittest.TestCase):
+    def test_parses_id_and_name(self):
+        from modlist_utils import parse_category_names
+        text = "\ufeff1|Animations|2|0\n2|Armour|3,4|0\n\nbad line\nx|Nope|1|0\n3||1|0\n"
+        self.assertEqual(parse_category_names(text), {"1": "Animations", "2": "Armour"})
+
+    def test_load_reads_file(self):
+        from modlist_utils import load_category_names
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "categories.dat")
+            with open(p, "w", encoding="utf-8") as f:
+                f.write("5|Gameplay|1|0\n")
+            self.assertEqual(load_category_names(p), {"5": "Gameplay"})
+
+
 class NameKeyTest(unittest.TestCase):
     def test_case_insensitive(self):
         self.assertEqual(name_key("Core"), name_key("CORE"))

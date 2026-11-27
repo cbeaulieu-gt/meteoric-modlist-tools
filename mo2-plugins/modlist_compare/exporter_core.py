@@ -75,6 +75,22 @@ def read_meta_ini(mod_path):
     return general_data, installed_files_data
 
 
+def find_category_names(organizer):
+    """{id: name} from the MO2 instance's categories.dat, or {} if unavailable.
+
+    Best-effort: a missing/unreadable file or an API difference just means the
+    diff shows bare category IDs.
+    """
+    try:
+        path = os.path.join(organizer.basePath(), "categories.dat")
+        if os.path.isfile(path):
+            from ._vendor import modlist_utils
+            return modlist_utils.load_category_names(path)
+    except Exception:
+        pass
+    return {}
+
+
 def suggested_list_name(organizer):
     """First separator's cleaned name (sanitized), or 'modlist_export'."""
     mod_list = organizer.modList()
