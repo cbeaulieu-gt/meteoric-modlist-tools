@@ -66,6 +66,7 @@ class DiffRow:
     new_version: str = ""
     moved_from: str = ""    # section name the mod moved FROM (shown on right)
     moved_to: str = ""      # section name the mod moved TO (shown on left)
+    also_updated: bool = False  # moved-out row whose mod also changed version (filter only)
     is_section: bool = False  # True if this row is a section header
     section_match: Optional[SectionMatch] = None  # set when is_section=True
 
@@ -335,6 +336,7 @@ def align_mods_in_section(old_mods, new_mods, mod_match_lookup):
                 change=ChangeType.MOVED,
                 old_version=old_ver, new_version=new_ver,
                 moved_to=new_mod.get("separatorName", ""),
+                also_updated=ChangeType.UPDATED in change,
             ))
         else:
             # No match — removed
@@ -447,6 +449,7 @@ def build_aligned_diff(old_data, new_data, matched_pairs, added_mods, removed_mo
                         change=ChangeType.MOVED,
                         old_version=old_ver, new_version=new_ver,
                         moved_to=new_mod.get("separatorName", ""),
+                        also_updated=ChangeType.UPDATED in change,
                     ))
                 else:
                     rows.append(DiffRow(left_mod=mod, change=ChangeType.REMOVED))
@@ -714,16 +717,19 @@ def render_html(rows, old_name, new_name, summary, categories=None):
     # Pre-pass: each mod row's grouping (nearest section header above it) and the
     # distinct groupings / categories for the exclusion dropdowns.
     groupings, cat_ids, row_sec = {}, set(), []
-    cur_sec = ("unsectioned", "Unsectioned")
+    cur_sec = ("unsectioned", "Unsectioned", "Unsectioned")
     for row in rows:
         if row.is_section:
             if row.section_match:
-                label = _section_label(row.section_match)
-                cur_sec = (name_key(label), label)
+                sm = row.section_match
+                # Identity key from the raw name, so "---- CORE ----" and "CORE"
+                # stay distinct groups; the stripped label is display-only.
+                raw = sm.new_name or sm.old_name or ""
+                cur_sec = (name_key(raw), raw, _section_label(sm))
         else:
-            groupings.setdefault(*cur_sec)
+            groupings.setdefault(cur_sec[0], cur_sec[1])
             cat_ids.update(_categories(row))
-        row_sec.append(cur_sec[0])
+        row_sec.append((cur_sec[0], cur_sec[2]))
     def cat_label(c):
         return "(none)" if c == "none" else categories.get(c, c)
 
@@ -804,7 +810,7 @@ def render_html(rows, old_name, new_name, summary, categories=None):
         if row.is_section:
             _render_section_row(parts, row)
         else:
-            _render_mod_row(parts, row, sec, categories)
+            _render_mod_row(parts, row, sec[0], categories, sec[1])
 
     parts.append("</tbody></table>")
 
@@ -830,7 +836,7 @@ def render_html(rows, old_name, new_name, summary, categories=None):
         "var off=Array.prototype.map.call(document.querySelectorAll('.type-chip:not(.on)'),"
         "function(c){return c.getAttribute('data-type');});"
         "var xm=csv('ex-mods'),xg=csv('ex-groups'),xs=ticked('ex-sec'),xc=ticked('ex-cat'),xk=csv('ex-cats');"
-        "var active=terms.length>0||off.length>0||xm.length>0||xg.length>0||xs.length>0||xc.length>0||xk.length>0;"
+        "var active=terms.length>0||off.length>0||xm.length>0||xg.length>0||xs.length>0||xc.length>0||xk.length>0||document.body.classList.contains('hide-unchanged');"
         "document.querySelectorAll('[data-names]').forEach(function(row){"
         "var hide=false,names=row.getAttribute('data-names').split('\\n');"
         "if(terms.length)hide=!names.some(function(n){return terms.every(function(t){return n.indexOf(t)!==-1;});});"
@@ -838,7 +844,7 @@ def render_html(rows, old_name, new_name, summary, categories=None):
         "var t=row.dataset.types;"
         "if(!hide&&t&&off.length)hide=t.split(' ').every(function(x){return off.indexOf(x)>-1;});"
         "var sec=row.dataset.sec||'';"
-        "if(!hide)hide=hits(sec,xg)||xs.indexOf(sec)>-1;"
+        "if(!hide)hide=hits(row.dataset.secl||'',xg)||xs.indexOf(sec)>-1;"
         "if(!hide&&xc.length)hide=(row.dataset.cat||'').split(' ').some(function(c){return xc.indexOf(c)>-1;});"
         "if(!hide&&xk.length)hide=(row.dataset.catn||'').split('\\n').some(function(n){return hits(n,xk);});"
         "row.classList.toggle('filter-hidden',hide);});"
@@ -924,8 +930,9 @@ def _render_section_row(parts, row):
     parts.append("</tr>")
 
 
-def _render_mod_row(parts, row, sec="", cat_names=None):
-    """Render a mod diff row; ``sec`` is its grouping's ``name_key``."""
+def _render_mod_row(parts, row, sec="", cat_names=None, sec_label=""):
+    """Render a mod diff row; ``sec`` is its grouping's ``name_key`` and
+    ``sec_label`` its display label (matched by the Hide-groups text box)."""
     change = row.change
 
     # Determine row CSS class
@@ -949,7 +956,8 @@ def _render_mod_row(parts, row, sec="", cat_names=None):
             if nl not in names:  # dedup: unchanged rows have the same name twice
                 names.append(nl)
     data_names = _esc("\n".join(names))
-    types = " ".join(_change_types(change))
+    # A moved-out row of a mod that also changed version still counts as updated.
+    types = " ".join(_change_types(change | ChangeType.UPDATED if row.also_updated else change))
     types_attr = f' data-types="{types}"' if types else ""
     cats = _categories(row)
     catn_attr = ""
@@ -957,7 +965,7 @@ def _render_mod_row(parts, row, sec="", cat_names=None):
         catn = "\n".join(cat_names[c].lower() for c in cats if c in cat_names)
         catn_attr = f' data-catn="{_esc(catn)}"'
     parts.append(f'<tr class="{cls}" data-names="{data_names}"{types_attr} '
-                 f'data-sec="{_esc(sec)}" data-cat="{" ".join(cats)}"{catn_attr}>')
+                 f'data-sec="{_esc(sec)}" data-secl="{_esc(sec_label.lower())}" data-cat="{" ".join(cats)}"{catn_attr}>')
 
     # Changed rows link the mod name to its Nexus page; unchanged rows stay plain.
     changed = change != ChangeType.UNCHANGED

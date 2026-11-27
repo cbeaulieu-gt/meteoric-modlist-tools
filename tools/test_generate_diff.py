@@ -164,6 +164,49 @@ class FilterControlsTest(unittest.TestCase):
         self.assertIn("dataset.types", self.html)
         self.assertIn("csv('ex-mods')", self.html)
 
+    def test_decorated_and_plain_group_stay_distinct(self):
+        rows = []
+        for name in ("---------- CORE ----------", "CORE"):
+            rows.append(DiffRow(is_section=True, section_match=SectionMatch(
+                name, name, ChangeType.UNCHANGED)))
+            rows.append(DiffRow(left_mod={"modName": name}, right_mod={"modName": name}))
+        html_ = render_html(rows, "Old", "New", _summary())
+        values = re.findall(r'<input type="checkbox" value="([^"]*)"> ', html_)
+        self.assertEqual(values[:2], ["---------- core ----------", "core"])
+        self.assertIn('data-sec="---------- core ----------"', html_)
+        self.assertIn('data-sec="core"', html_)
+
+    def test_group_text_matches_display_label_not_identity_key(self):
+        sec = DiffRow(is_section=True, section_match=SectionMatch(
+            "Straße", "Straße", ChangeType.UNCHANGED))
+        row = DiffRow(left_mod={"modName": "A"}, right_mod={"modName": "A"})
+        html_ = render_html([sec, row], "Old", "New", _summary())
+        self.assertIn('data-sec="strasse"', html_)  # identity key is casefolded
+        self.assertIn('data-secl="straße"', html_)  # text match uses .lower()
+        self.assertIn("hits(row.dataset.secl||'',xg)", html_)
+
+    def test_hide_unchanged_counts_as_active_filter(self):
+        self.assertRegex(
+            self.html,
+            r"var active=[^;]*document\.body\.classList\.contains\('hide-unchanged'\)")
+
+    def test_moved_and_updated_mod_keeps_updated_on_both_rows(self):
+        old_mod = {"modName": "Walk", "separatorName": "Old Sec",
+                   "general": {"version": "1.0"}}
+        new_mod = {"modName": "Walk", "separatorName": "New Sec",
+                   "general": {"version": "2.0"}}
+        (_o, _n, change, ov, nv), = classify_mod_changes(
+            [(old_mod, new_mod)], {"old sec": "other"})
+        self.assertEqual(change, ChangeType.MOVED | ChangeType.UPDATED)
+        lookup = {id(old_mod): (new_mod, change, ov, nv),
+                  ("rev", id(new_mod)): (old_mod, change, ov, nv)}
+        out_rows = generate_diff.align_mods_in_section([old_mod], [], lookup)
+        in_rows = generate_diff.align_mods_in_section([], [new_mod], lookup)
+        html_ = render_html(out_rows + in_rows, "Old", "New", _summary())
+        self.assertEqual(html_.count('data-types="moved updated"'), 2)
+        # Outgoing row still renders as a plain move.
+        self.assertIn('class="mod-moved" data-names', html_)
+
 
 class NexusLinkTest(unittest.TestCase):
     """Changed mods link to their Nexus page; unchanged mods stay plain."""

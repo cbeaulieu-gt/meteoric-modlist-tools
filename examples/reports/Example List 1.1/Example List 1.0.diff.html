@@ -172,7 +172,7 @@ body.hide-unchanged tr.mod-unchanged { display: none; }
 <span class="stat stat-sections">1 section changes</span>
 </div>
 <div class="filter-wrap"><input type="search" id="filter-input" class="filter-input" placeholder="Filter mods… (space = AND)" autocomplete="off"><button type="button" id="filter-clear" class="filter-clear" aria-label="Clear filter" hidden>&times;</button></div>
-<div class="ex-row"><input type="search" id="ex-mods" class="filter-input" autocomplete="off" placeholder="Hide mods matching… (a, b)"><input type="search" id="ex-groups" class="filter-input" autocomplete="off" placeholder="Hide groups matching… (a, b)"><details class="ex ex-sec"><summary data-label="Groups">Groups</summary><div class="ex-list"><label><input type="checkbox" value="core"> CORE</label><label><input type="checkbox" value="bug fixes"> BUG FIXES</label><label><input type="checkbox" value="gameplay"> Gameplay</label><label><input type="checkbox" value="textures"> Textures</label><label><input type="checkbox" value="patches"> Patches</label></div></details><details class="ex ex-cat"><summary data-label="Categories">Categories</summary><div class="ex-list"><label><input type="checkbox" value="1"> 1</label><label><input type="checkbox" value="none"> (none)</label></div></details></div>
+<div class="ex-row"><input type="search" id="ex-mods" class="filter-input" autocomplete="off" placeholder="Hide mods matching… (a, b)"><input type="search" id="ex-groups" class="filter-input" autocomplete="off" placeholder="Hide groups matching… (a, b)"><details class="ex ex-sec"><summary data-label="Groups">Groups</summary><div class="ex-list"><label><input type="checkbox" value="---------- core ----------"> ---------- CORE ----------</label><label><input type="checkbox" value="bug fixes"> BUG FIXES</label><label><input type="checkbox" value="gameplay"> Gameplay</label><label><input type="checkbox" value="textures"> Textures</label><label><input type="checkbox" value="patches"> Patches</label></div></details><details class="ex ex-cat"><summary data-label="Categories">Categories</summary><div class="ex-list"><label><input type="checkbox" value="1"> 1</label><label><input type="checkbox" value="none"> (none)</label></div></details></div>
 </div>
 <div class="legend">
 <span class="legend-item"><span class="legend-color" style="background:#4ade80"></span>Added</span>
@@ -185,15 +185,15 @@ body.hide-unchanged tr.mod-unchanged { display: none; }
 <tr class="section-header section-major">
 <td colspan="2">CORE</td>
 </tr>
-<tr class="mod-unchanged" data-names="address library for skse plugins" data-sec="core" data-cat="1">
+<tr class="mod-unchanged" data-names="address library for skse plugins" data-sec="---------- core ----------" data-secl="core" data-cat="1">
 <td>Address Library for SKSE Plugins</td>
 <td>Address Library for SKSE Plugins</td>
 </tr>
-<tr class="mod-updated" data-names="powerofthree&#x27;s papyrus extender" data-types="updated" data-sec="core" data-cat="1">
+<tr class="mod-updated" data-names="powerofthree&#x27;s papyrus extender" data-types="updated" data-sec="---------- core ----------" data-secl="core" data-cat="1">
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/22854" target="_blank" rel="noopener">powerofthree&#x27;s Papyrus Extender</a><span class="version-change">5.5</span></td>
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/22854" target="_blank" rel="noopener">powerofthree&#x27;s Papyrus Extender</a><span class="version-change">5.5 &rarr; 5.6</span></td>
 </tr>
-<tr class="mod-moved" data-names="skyui" data-types="moved" data-sec="core" data-cat="1">
+<tr class="mod-moved" data-names="skyui" data-types="moved" data-sec="---------- core ----------" data-secl="core" data-cat="1">
 <td class="empty"></td>
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/12604" target="_blank" rel="noopener">SkyUI</a><span class="move-annotation">&larr; Gameplay</span></td>
 </tr>
@@ -201,16 +201,16 @@ body.hide-unchanged tr.mod-unchanged { display: none; }
 <td>Bug Fixes</td>
 <td>BUG FIXES</td>
 </tr>
-<tr class="mod-updated" data-names="unofficial skyrim special edition patch" data-types="updated" data-sec="bug fixes" data-cat="1">
+<tr class="mod-updated" data-names="unofficial skyrim special edition patch" data-types="updated" data-sec="bug fixes" data-secl="bug fixes" data-cat="1">
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/266" target="_blank" rel="noopener">Unofficial Skyrim Special Edition Patch</a><span class="version-change">4.2.9</span></td>
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/266" target="_blank" rel="noopener">Unofficial Skyrim Special Edition Patch</a><span class="version-change">4.2.9 &rarr; 4.3</span></td>
 </tr>
 <tr class="mod-unchanged" data-names="cutting room floor
-cutting room floor merged" data-sec="bug fixes" data-cat="1">
+cutting room floor merged" data-sec="bug fixes" data-secl="bug fixes" data-cat="1">
 <td>Cutting Room Floor</td>
 <td>Cutting Room Floor Merged</td>
 </tr>
-<tr class="mod-removed" data-names="cutting room floor - ussep patch" data-types="removed" data-sec="bug fixes" data-cat="1">
+<tr class="mod-removed" data-names="cutting room floor - ussep patch" data-types="removed" data-sec="bug fixes" data-secl="bug fixes" data-cat="1">
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/276" target="_blank" rel="noopener">Cutting Room Floor - USSEP Patch</a></td>
 <td class="empty"></td>
 </tr>
@@ -218,27 +218,27 @@ cutting room floor merged" data-sec="bug fixes" data-cat="1">
 <td>Gameplay</td>
 <td>Gameplay</td>
 </tr>
-<tr class="mod-moved" data-names="skyui" data-types="moved" data-sec="gameplay" data-cat="1">
+<tr class="mod-moved" data-names="skyui" data-types="moved" data-sec="gameplay" data-secl="gameplay" data-cat="1">
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/12604" target="_blank" rel="noopener">SkyUI</a><span class="move-annotation">&rarr; ---------- CORE ----------</span></td>
 <td class="empty"></td>
 </tr>
-<tr class="mod-unchanged" data-names="wet and cold" data-sec="gameplay" data-cat="1">
+<tr class="mod-unchanged" data-names="wet and cold" data-sec="gameplay" data-secl="gameplay" data-cat="1">
 <td>Wet and Cold</td>
 <td>Wet and Cold</td>
 </tr>
-<tr class="mod-added" data-names="dear diary dark mode" data-types="added" data-sec="gameplay" data-cat="1">
+<tr class="mod-added" data-names="dear diary dark mode" data-types="added" data-sec="gameplay" data-secl="gameplay" data-cat="1">
 <td class="empty"></td>
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/9101" target="_blank" rel="noopener">Dear Diary Dark Mode</a></td>
 </tr>
-<tr class="mod-added" data-names="sky idles" data-types="added" data-sec="gameplay" data-cat="1">
+<tr class="mod-added" data-names="sky idles" data-types="added" data-sec="gameplay" data-secl="gameplay" data-cat="1">
 <td class="empty"></td>
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/9102" target="_blank" rel="noopener">Sky Idles</a></td>
 </tr>
-<tr class="mod-removed" data-names="old menu replacer" data-types="removed" data-sec="gameplay" data-cat="1">
+<tr class="mod-removed" data-names="old menu replacer" data-types="removed" data-sec="gameplay" data-secl="gameplay" data-cat="1">
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/9010" target="_blank" rel="noopener">Old Menu Replacer</a></td>
 <td class="empty"></td>
 </tr>
-<tr class="mod-unchanged" data-names="timing is everything" data-sec="gameplay" data-cat="1">
+<tr class="mod-unchanged" data-names="timing is everything" data-sec="gameplay" data-secl="gameplay" data-cat="1">
 <td>Timing is Everything</td>
 <td>Timing is Everything</td>
 </tr>
@@ -249,16 +249,16 @@ cutting room floor merged" data-sec="bug fixes" data-cat="1">
 <td>Textures</td>
 <td>Textures</td>
 </tr>
-<tr class="mod-unchanged" data-names="skyrim 2020 parallax" data-sec="textures" data-cat="1">
+<tr class="mod-unchanged" data-names="skyrim 2020 parallax" data-sec="textures" data-secl="textures" data-cat="1">
 <td>Skyrim 2020 Parallax</td>
 <td>Skyrim 2020 Parallax</td>
 </tr>
 <tr class="mod-updated" data-names="skyrim landscape overhaul
-landscape fixes for grass mods" data-types="updated" data-sec="textures" data-cat="1">
+landscape fixes for grass mods" data-types="updated" data-sec="textures" data-secl="textures" data-cat="1">
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/9005" target="_blank" rel="noopener">Skyrim Landscape Overhaul</a><span class="version-change">1.2</span></td>
 <td><a href="https://www.nexusmods.com/skyrimspecialedition/mods/9005" target="_blank" rel="noopener">Landscape Fixes For Grass Mods</a><span class="version-change">1.2 &rarr; 1.3</span></td>
 </tr>
-<tr class="mod-unchanged" data-names="rudy hq - nordic ruins" data-sec="textures" data-cat="1">
+<tr class="mod-unchanged" data-names="rudy hq - nordic ruins" data-sec="textures" data-secl="textures" data-cat="1">
 <td>Rudy HQ - Nordic Ruins</td>
 <td>Rudy HQ - Nordic Ruins</td>
 </tr>
@@ -266,17 +266,17 @@ landscape fixes for grass mods" data-types="updated" data-sec="textures" data-ca
 <td>Patches</td>
 <td>Patches</td>
 </tr>
-<tr class="mod-unchanged" data-names="custom patches" data-sec="patches" data-cat="none">
+<tr class="mod-unchanged" data-names="custom patches" data-sec="patches" data-secl="patches" data-cat="none">
 <td>Custom Patches</td>
 <td>Custom Patches</td>
 </tr>
-<tr class="mod-unchanged" data-names="landscape fixes patch collection" data-sec="patches" data-cat="1">
+<tr class="mod-unchanged" data-names="landscape fixes patch collection" data-sec="patches" data-secl="patches" data-cat="1">
 <td>Landscape Fixes Patch Collection</td>
 <td>Landscape Fixes Patch Collection</td>
 </tr>
 </tbody></table>
 <script>
 function toggleUnchanged() { var on = document.body.classList.toggle('hide-unchanged'); var btn = document.getElementById('toggle-unchanged'); btn.classList.toggle('active', on); btn.textContent = on ? 'Show unchanged mods' : 'Hide unchanged mods'; refilter(); }
-function csv(id){var e=document.getElementById(id);return e?e.value.toLowerCase().split(',').map(function(s){return s.trim();}).filter(Boolean):[];}function ticked(c){return Array.prototype.map.call(document.querySelectorAll('.'+c+' input:checked'),function(i){return i.value;});}function hits(s,l){return l.some(function(t){return s.indexOf(t)!==-1;});}function filterMods(q){var terms=(q||'').trim().toLowerCase().split(/\s+/).filter(Boolean);var off=Array.prototype.map.call(document.querySelectorAll('.type-chip:not(.on)'),function(c){return c.getAttribute('data-type');});var xm=csv('ex-mods'),xg=csv('ex-groups'),xs=ticked('ex-sec'),xc=ticked('ex-cat'),xk=csv('ex-cats');var active=terms.length>0||off.length>0||xm.length>0||xg.length>0||xs.length>0||xc.length>0||xk.length>0;document.querySelectorAll('[data-names]').forEach(function(row){var hide=false,names=row.getAttribute('data-names').split('\n');if(terms.length)hide=!names.some(function(n){return terms.every(function(t){return n.indexOf(t)!==-1;});});if(!hide&&xm.length)hide=names.some(function(n){return hits(n,xm);});var t=row.dataset.types;if(!hide&&t&&off.length)hide=t.split(' ').every(function(x){return off.indexOf(x)>-1;});var sec=row.dataset.sec||'';if(!hide)hide=hits(sec,xg)||xs.indexOf(sec)>-1;if(!hide&&xc.length)hide=(row.dataset.cat||'').split(' ').some(function(c){return xc.indexOf(c)>-1;});if(!hide&&xk.length)hide=(row.dataset.catn||'').split('\n').some(function(n){return hits(n,xk);});row.classList.toggle('filter-hidden',hide);});applySectionVisibility(active);}function rowCounts(row){if(row.classList.contains('filter-hidden'))return false;if(document.body.classList.contains('hide-unchanged')&&row.classList.contains('mod-unchanged'))return false;return true;}function applySectionVisibility(active){var hdr=null,any=false;function close(){if(hdr)hdr.classList.toggle('filter-empty',active&&!any);}var rows=document.querySelectorAll('.diff-table tr');rows.forEach(function(tr){if(tr.classList.contains('section-header')){close();any=false;hdr=tr.classList.contains('section-major')?null:tr;}else if(rowCounts(tr))any=true;});close();rows.forEach(function(b){if(!b.classList.contains('section-major'))return;var vis=false;for(var el=b.nextElementSibling;el&&!el.classList.contains('section-major');el=el.nextElementSibling){if(el.classList.contains('section-header')){if(!el.classList.contains('filter-empty')){vis=true;break;}}else if(rowCounts(el)){vis=true;break;}}b.classList.toggle('filter-empty',active&&!vis);});}function refilter(){var i=document.getElementById('filter-input');filterMods(i?i.value:'');}(function(){var i=document.getElementById('filter-input');if(!i)return;var c=document.getElementById('filter-clear');function sync(){if(c)c.hidden=!i.value;}i.addEventListener('input',function(){filterMods(this.value);sync();});i.addEventListener('keydown',function(e){if(e.key==='Escape'){this.value='';filterMods('');sync();}});if(c)c.addEventListener('click',function(){i.value='';filterMods('');sync();i.focus();});sync();})();document.querySelectorAll('.type-chip').forEach(function(c){c.addEventListener('click',function(){c.classList.toggle('on');refilter();});});['ex-mods','ex-groups','ex-cats'].forEach(function(id){var e=document.getElementById(id);if(e)e.addEventListener('input',refilter);});document.querySelectorAll('details.ex').forEach(function(d){d.addEventListener('change',function(){var n=d.querySelectorAll('input:checked').length,s=d.querySelector('summary');s.textContent=s.getAttribute('data-label')+(n?' ('+n+')':'');refilter();});});
+function csv(id){var e=document.getElementById(id);return e?e.value.toLowerCase().split(',').map(function(s){return s.trim();}).filter(Boolean):[];}function ticked(c){return Array.prototype.map.call(document.querySelectorAll('.'+c+' input:checked'),function(i){return i.value;});}function hits(s,l){return l.some(function(t){return s.indexOf(t)!==-1;});}function filterMods(q){var terms=(q||'').trim().toLowerCase().split(/\s+/).filter(Boolean);var off=Array.prototype.map.call(document.querySelectorAll('.type-chip:not(.on)'),function(c){return c.getAttribute('data-type');});var xm=csv('ex-mods'),xg=csv('ex-groups'),xs=ticked('ex-sec'),xc=ticked('ex-cat'),xk=csv('ex-cats');var active=terms.length>0||off.length>0||xm.length>0||xg.length>0||xs.length>0||xc.length>0||xk.length>0||document.body.classList.contains('hide-unchanged');document.querySelectorAll('[data-names]').forEach(function(row){var hide=false,names=row.getAttribute('data-names').split('\n');if(terms.length)hide=!names.some(function(n){return terms.every(function(t){return n.indexOf(t)!==-1;});});if(!hide&&xm.length)hide=names.some(function(n){return hits(n,xm);});var t=row.dataset.types;if(!hide&&t&&off.length)hide=t.split(' ').every(function(x){return off.indexOf(x)>-1;});var sec=row.dataset.sec||'';if(!hide)hide=hits(row.dataset.secl||'',xg)||xs.indexOf(sec)>-1;if(!hide&&xc.length)hide=(row.dataset.cat||'').split(' ').some(function(c){return xc.indexOf(c)>-1;});if(!hide&&xk.length)hide=(row.dataset.catn||'').split('\n').some(function(n){return hits(n,xk);});row.classList.toggle('filter-hidden',hide);});applySectionVisibility(active);}function rowCounts(row){if(row.classList.contains('filter-hidden'))return false;if(document.body.classList.contains('hide-unchanged')&&row.classList.contains('mod-unchanged'))return false;return true;}function applySectionVisibility(active){var hdr=null,any=false;function close(){if(hdr)hdr.classList.toggle('filter-empty',active&&!any);}var rows=document.querySelectorAll('.diff-table tr');rows.forEach(function(tr){if(tr.classList.contains('section-header')){close();any=false;hdr=tr.classList.contains('section-major')?null:tr;}else if(rowCounts(tr))any=true;});close();rows.forEach(function(b){if(!b.classList.contains('section-major'))return;var vis=false;for(var el=b.nextElementSibling;el&&!el.classList.contains('section-major');el=el.nextElementSibling){if(el.classList.contains('section-header')){if(!el.classList.contains('filter-empty')){vis=true;break;}}else if(rowCounts(el)){vis=true;break;}}b.classList.toggle('filter-empty',active&&!vis);});}function refilter(){var i=document.getElementById('filter-input');filterMods(i?i.value:'');}(function(){var i=document.getElementById('filter-input');if(!i)return;var c=document.getElementById('filter-clear');function sync(){if(c)c.hidden=!i.value;}i.addEventListener('input',function(){filterMods(this.value);sync();});i.addEventListener('keydown',function(e){if(e.key==='Escape'){this.value='';filterMods('');sync();}});if(c)c.addEventListener('click',function(){i.value='';filterMods('');sync();i.focus();});sync();})();document.querySelectorAll('.type-chip').forEach(function(c){c.addEventListener('click',function(){c.classList.toggle('on');refilter();});});['ex-mods','ex-groups','ex-cats'].forEach(function(id){var e=document.getElementById(id);if(e)e.addEventListener('input',refilter);});document.querySelectorAll('details.ex').forEach(function(d){d.addEventListener('change',function(){var n=d.querySelectorAll('input:checked').length,s=d.querySelector('summary');s.textContent=s.getAttribute('data-label')+(n?' ('+n+')':'');refilter();});});
 </script>
 </body></html>
