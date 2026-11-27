@@ -22,35 +22,59 @@ from PyQt6.QtWidgets import (
 
 from . import exporter_core, report_runner
 
-CURRENT_PROFILE = "Current profile"
 JSON_FILE = "JSON file…"
 _TITLE = "Generate Reports"
+_FILE_TOKEN = "file"
+_PROFILE_PREFIX = "profile:"
 
 
 class _SidePicker:
-    """Widgets for one list side (not itself a QWidget)."""
+    """Widgets for one list side (not itself a QWidget).
 
-    def __init__(self, on_browse):
+    Combo items carry a stable token as item data: "profile:<name>" for a
+    profile (the active one is labelled "Current profile (<name>)") or "file".
+    """
+
+    def __init__(self, on_browse, active, profiles):
         self.combo = QComboBox()
-        self.combo.addItems([CURRENT_PROFILE, JSON_FILE])
+        self.combo.addItem(
+            f"Current profile ({active})", _PROFILE_PREFIX + active
+        )
+        for name in profiles:
+            if name.casefold() != active.casefold():
+                self.combo.addItem(name, _PROFILE_PREFIX + name)
+        self.combo.addItem(JSON_FILE, _FILE_TOKEN)
         self.combo.setToolTip(
-            "'Current profile' exports the active MO2 profile live; "
-            "'JSON file…' uses a previous export."
+            "Any MO2 profile (the current one is exported live, others are "
+            "read from their modlist.txt); 'JSON file…' uses a previous export."
         )
         self.path_edit = QLineEdit()
         self.path_edit.setReadOnly(True)
         self.browse_btn = QPushButton("Browse…")
         self.browse_btn.clicked.connect(on_browse)
-        self.combo.currentTextChanged.connect(self._sync_enabled)
-        self._sync_enabled(self.combo.currentText())
+        self.combo.currentIndexChanged.connect(self._sync_enabled)
+        self._sync_enabled()
 
-    def _sync_enabled(self, text):
-        is_file = text == JSON_FILE
+    def _sync_enabled(self, _index=None):
+        is_file = self.token() == _FILE_TOKEN
         self.path_edit.setEnabled(is_file)
         self.browse_btn.setEnabled(is_file)
 
-    def is_live(self):
-        return self.combo.currentText() == CURRENT_PROFILE
+    def token(self):
+        return str(self.combo.currentData())
+
+    def selection(self):
+        """("profile", <profile name>) or ("file", "")."""
+        token = self.token()
+        if token.startswith(_PROFILE_PREFIX):
+            return ("profile", token[len(_PROFILE_PREFIX):])
+        return ("file", "")
+
+    def select_token(self, token):
+        """Select the item with this token if present; otherwise leave as is."""
+        index = self.combo.findData(token)
+        if index >= 0:
+            self.combo.setCurrentIndex(index)
 
     def path(self):
         return self.path_edit.text().strip()
@@ -73,9 +97,9 @@ class _ReportWorker(QThread):
     done = pyqtSignal(object)  # RunResult (its .cancelled reflects an abort)
 
     def __init__(self, parent, side1, side2, report_types, dest, save_exports,
-                 categories=None):
+                 base=None, categories=None):
         super().__init__(parent)
-        self._args = (side1, side2, report_types, dest, save_exports)
+        self._args = (side1, side2, report_types, dest, save_exports, base)
         self._categories = categories
         self.cancel_event = threading.Event()
         self._last_emitted = None
@@ -104,11 +128,11 @@ class _ReportWorker(QThread):
         old_interval = sys.getswitchinterval()
         sys.setswitchinterval(0.0002)
         try:
-            side1, side2, report_types, dest, save_exports = self._args
+            side1, side2, report_types, dest, save_exports, base = self._args
             result = report_runner.run_reports(
                 side1, side2, report_types, dest,
                 save_exports=save_exports, progress=self._on_progress,
-                categories=self._categories,
+                base=base, categories=self._categories,
             )
         except BaseException as e:
             # Unexpected failure: surface through the same errors path the
@@ -213,6 +237,10 @@ class GenerateReportsDialog(QDialog):
         for rtype, box in self._report_boxes.items():
             box.setChecked(rtype in chosen)
         self._save_export_box.setChecked(str(self._get("save_export", "true")) == "true")
+        self._enabled_only_box.setChecked(
+            str(self._get("enabled_only", "false")) == "true")
+        self._side1.select_token(str(self._get("side1", "")))
+        self._side2.select_token(str(self._get("side2", "")))
 
     def _save_state(self):
         self._set("dest_dir", self._dest_edit.text().strip())
@@ -220,14 +248,25 @@ class GenerateReportsDialog(QDialog):
             r for r, box in self._report_boxes.items() if box.isChecked()
         ))
         self._set("save_export", "true" if self._save_export_box.isChecked() else "false")
+        self._set("enabled_only",
+                  "true" if self._enabled_only_box.isChecked() else "false")
+        self._set("side1", self._side1.token())
+        self._set("side2", self._side2.token())
 
     # ---- UI --------------------------------------------------------------
 
     def _build_ui(self):
         grid = QGridLayout(self)
 
-        self._side1 = _SidePicker(lambda: self._browse_side(self._side1))
-        self._side2 = _SidePicker(lambda: self._browse_side(self._side2))
+        active = exporter_core.active_profile_name(self._organizer)
+        try:
+            profiles = exporter_core.list_profiles(self._organizer)
+        except Exception:
+            profiles = []
+        self._side1 = _SidePicker(
+            lambda: self._browse_side(self._side1), active, profiles)
+        self._side2 = _SidePicker(
+            lambda: self._browse_side(self._side2), active, profiles)
         for row, (label, side) in enumerate(
             (("List 1 (source / old):", self._side1),
              ("List 2 (target / new):", self._side2))
@@ -238,9 +277,10 @@ class GenerateReportsDialog(QDialog):
             grid.addWidget(side.browse_btn, row, 3)
 
         list_hint = QLabel(
-            "Each side is the current MO2 profile (exported live) or a saved "
-            "JSON export. Coverage: List 1 = source to pull from, List 2 = "
-            "your list. Diff / Changelog: List 1 = old, List 2 = new."
+            "Each side is any MO2 profile or a saved JSON export. Coverage: "
+            "List 1 = source to pull from, List 2 = your list. Diff / "
+            "Changelog: List 1 = old, List 2 = new. Rebase: List 1 = the new "
+            "base, List 2 = your custom list (plus the previous base below)."
         )
         list_hint.setWordWrap(True)
         list_hint.setStyleSheet("color: gray;")
@@ -256,9 +296,12 @@ class GenerateReportsDialog(QDialog):
                     "removes, moves, updates.",
             "changelog": "Markdown summary of added, removed, and updated mods "
                          "(List 1 → List 2).",
+            "rebase": "Only what changed in the base update: List 1 = new "
+                      "base, List 2 = your custom list. Needs the previous "
+                      "base JSON.",
         }
         for rtype, label in (("coverage", "Coverage"), ("diff", "Diff"),
-                             ("changelog", "Changelog")):
+                             ("changelog", "Changelog"), ("rebase", "Rebase")):
             box = QCheckBox(label)
             box.setToolTip(tooltips[rtype])
             self._report_boxes[rtype] = box
@@ -266,28 +309,44 @@ class GenerateReportsDialog(QDialog):
         reports_row.addStretch()
         grid.addLayout(reports_row, 3, 1, 1, 3)
 
-        grid.addWidget(QLabel("Destination folder:"), 4, 0)
+        grid.addWidget(QLabel("Previous base:"), 4, 0)
+        self._base_edit = QLineEdit()
+        self._base_edit.setReadOnly(True)
+        base_btn = QPushButton("Browse…")
+        base_btn.clicked.connect(self._browse_base)
+        grid.addWidget(self._base_edit, 4, 1, 1, 2)
+        grid.addWidget(base_btn, 4, 3)
+
+        grid.addWidget(QLabel("Destination folder:"), 5, 0)
         self._dest_edit = QLineEdit()
         dest_btn = QPushButton("Browse…")
         dest_btn.clicked.connect(self._browse_dest)
-        grid.addWidget(self._dest_edit, 4, 1, 1, 2)
-        grid.addWidget(dest_btn, 4, 3)
+        grid.addWidget(self._dest_edit, 5, 1, 1, 2)
+        grid.addWidget(dest_btn, 5, 3)
 
         dest_hint = QLabel("Reports are written to <folder>/<List 2>/<List 1>.<type>.")
         # PlainText, not AutoText: Qt's rich-text heuristic reads "<folder>" as
         # a tag and would swallow every placeholder in this line.
         dest_hint.setTextFormat(Qt.TextFormat.PlainText)
         dest_hint.setStyleSheet("color: gray;")
-        grid.addWidget(dest_hint, 5, 0, 1, 4)
+        grid.addWidget(dest_hint, 6, 0, 1, 4)
 
-        self._save_export_box = QCheckBox(
-            'Save "Current profile" export as JSON'
-        )
+        self._save_export_box = QCheckBox("Save profile exports as JSON")
         self._save_export_box.setToolTip(
-            "Also save the live profile's export as JSON in the destination "
+            "Also save each profile side's export as JSON in the destination "
             "folder, so you can reuse it later."
         )
-        grid.addWidget(self._save_export_box, 6, 0, 1, 4)
+        grid.addWidget(self._save_export_box, 7, 0, 1, 4)
+
+        self._enabled_only_box = QCheckBox("Only compare enabled mods")
+        self._enabled_only_box.setToolTip(
+            "All MO2 profiles share one mods folder, so a profile's list also "
+            "contains the mods only other profiles use, marked disabled. "
+            "Ticking this ignores disabled mods on every side (and the "
+            "Previous base), so they are not counted as present. Saved "
+            "profile exports contain the filtered list too."
+        )
+        grid.addWidget(self._enabled_only_box, 8, 0, 1, 4)
 
         buttons = QHBoxLayout()
         generate_btn = QPushButton("Generate")
@@ -298,7 +357,7 @@ class GenerateReportsDialog(QDialog):
         buttons.addStretch()
         buttons.addWidget(generate_btn)
         buttons.addWidget(cancel_btn)
-        grid.addLayout(buttons, 7, 0, 1, 4)
+        grid.addLayout(buttons, 9, 0, 1, 4)
 
     def _browse_side(self, side):
         start = str(self._get("browse_dir", ""))
@@ -307,6 +366,15 @@ class GenerateReportsDialog(QDialog):
         )
         if path:
             side.path_edit.setText(path)
+            self._set("browse_dir", os.path.dirname(path))
+
+    def _browse_base(self):
+        start = str(self._get("browse_dir", ""))
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select previous base JSON", start, "JSON files (*.json)"
+        )
+        if path:
+            self._base_edit.setText(path)
             self._set("browse_dir", os.path.dirname(path))
 
     def _browse_dest(self):
@@ -330,26 +398,35 @@ class GenerateReportsDialog(QDialog):
         return (os.path.normcase(os.path.abspath(a))
                 == os.path.normcase(os.path.abspath(b)))
 
+    def _apply_enabled_filter(self, data):
+        """Drop disabled mods from data when "Only compare enabled mods" is on."""
+        if self._enabled_only_box.isChecked():
+            return report_runner.filter_enabled(data)
+        return data
+
     def _resolve_side(self, label, picker):
         """Return a ListSide, or None after warning the user."""
-        if picker.is_live():
+        kind, name = picker.selection()
+        if kind == "profile":
             # Unhandled exceptions escaping a Qt slot go through qFatal() and
-            # abort MO2, so the live export is guarded like the file branch.
+            # abort MO2, so the profile export is guarded like the file branch.
             try:
-                data = exporter_core.export_modlist(self._organizer)
-                name = exporter_core.suggested_list_name(self._organizer)
+                data = self._apply_enabled_filter(
+                    exporter_core.export_profile(self._organizer, name))
             except Exception as e:
                 self._warn(
-                    f"{label}: could not export the current profile\n\n{e}"
+                    f"{label}: could not export profile '{name}'\n\n{e}"
                 )
                 return None
-            return report_runner.ListSide(name=name, data=data, live=True)
+            return report_runner.ListSide(name=name, data=data, from_profile=True)
         path = picker.path()
         if not path:
-            self._warn(f"{label}: choose a JSON file (or switch to Current profile).")
+            self._warn(f"{label}: choose a JSON file (or pick a profile).")
             return None
         try:
-            return report_runner.load_side_from_file(path)
+            side = report_runner.load_side_from_file(path)
+            side.data = self._apply_enabled_filter(side.data)
+            return side
         except Exception as e:
             self._warn(f"{label}: could not load\n{path}\n\n{e}")
             return None
@@ -357,10 +434,12 @@ class GenerateReportsDialog(QDialog):
     def _on_generate(self):
         if self._worker is not None:
             return  # a run is already in flight; never overwrite its wiring
-        if self._side1.is_live() and self._side2.is_live():
-            self._warn("Both sides are the current profile — pick a JSON file for one side.")
+        sel1, sel2 = self._side1.selection(), self._side2.selection()
+        if (sel1[0] == "profile" and sel2[0] == "profile"
+                and sel1[1].casefold() == sel2[1].casefold()):
+            self._warn("Both sides are the same profile — pick a different one.")
             return
-        if (not self._side1.is_live() and not self._side2.is_live()
+        if (sel1[0] == "file" and sel2[0] == "file"
                 and self._same_path(self._side1.path(), self._side2.path())):
             self._warn("Both sides are the same file.")
             return
@@ -373,6 +452,22 @@ class GenerateReportsDialog(QDialog):
             self._warn("Choose a destination folder.")
             return
 
+        base = None
+        if "rebase" in report_types:
+            base_path = self._base_edit.text().strip()
+            if not base_path:
+                self._warn("Rebase needs a previous base JSON — choose one.")
+                return
+            try:
+                base = report_runner.load_side_from_file(base_path)
+                base.data = self._apply_enabled_filter(base.data)
+            except Exception as e:
+                self._warn(f"Previous base: could not load\n{base_path}\n\n{e}")
+                return
+            if not base.data:
+                self._warn("Previous base: the file contains no mods.")
+                return
+
         side1 = self._resolve_side("List 1", self._side1)
         if side1 is None:
             return
@@ -380,10 +475,18 @@ class GenerateReportsDialog(QDialog):
         if side2 is None:
             return
 
+        problem = report_runner.validate_run(
+            side1, side2, report_types, base,
+            save_exports=self._save_export_box.isChecked(),
+        )
+        if problem:
+            self._warn(problem)
+            return
+
         self._save_state()
         self._worker = _ReportWorker(
             self, side1, side2, report_types, dest,
-            self._save_export_box.isChecked(),
+            self._save_export_box.isChecked(), base,
             exporter_core.find_category_names(self._organizer),
         )
         self._progress = _ProgressDialog(self, self._on_cancel_clicked)

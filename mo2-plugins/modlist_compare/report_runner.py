@@ -16,8 +16,10 @@ from ._vendor import (
     modlist_utils,
 )
 
-REPORT_TYPES = ("coverage", "diff", "changelog")
-_EXTENSIONS = {"coverage": "html", "diff": "html", "changelog": "md"}
+REPORT_TYPES = ("coverage", "diff", "changelog", "rebase")
+_EXTENSIONS = {
+    "coverage": "html", "diff": "html", "changelog": "md", "rebase": "html",
+}
 
 
 class Cancelled(Exception):
@@ -29,7 +31,7 @@ class ListSide:
     """One side of a comparison: a display name plus loaded modlist data."""
     name: str
     data: list
-    live: bool = False
+    from_profile: bool = False  # built from an MO2 profile (exported on demand)
 
 
 @dataclass
@@ -45,15 +47,38 @@ def load_side_from_file(path):
     if not isinstance(data, list):
         raise ValueError("not a modlist export (expected a JSON array)")
     name = os.path.splitext(os.path.basename(path))[0]
-    return ListSide(name=name, data=data, live=False)
+    return ListSide(name=name, data=data, from_profile=False)
+
+
+def filter_enabled(data):
+    """Return a copy of an export without mods explicitly marked disabled.
+
+    All MO2 profiles share one mods/ folder, so every profile's export lists
+    every installed mod, disabled where that profile does not use it. Items
+    with ``active`` exactly False are dropped; separators and items with no
+    ``active`` key (missing means enabled) are kept. Kept items are copied and
+    their ``order`` renumbered 0..n-1; the input is not mutated.
+    """
+    kept = [
+        dict(item) for item in data
+        if item.get("type") == "separator" or item.get("active") is not False
+    ]
+    for index, item in enumerate(kept):
+        item["order"] = index
+    return kept
 
 
 def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
-                min_confidence=0.80, progress=None, categories=None):
+                min_confidence=0.80, progress=None, base=None, categories=None):
     """Generate the selected reports from two sides into dest_dir.
 
     Naming matches the CLI: <dest>/<list2.name>/<list1.name>.<type>.<ext>.
-    Coverage reads <dest>/<list2.name>/.coverage-ignore.txt like a static run.
+    The rebase report (coverage in base-update mode) uses list1 as source,
+    list2 as target and base as the previous base list; it is named
+    <list1.name> (from <base.name>).rebase.html and reports no sub-progress.
+    A progress checkpoint follows every report's generation (before it is
+    written), so Cancel is honoured for every report type.
+    Coverage and rebase read <dest>/<list2.name>/.coverage-ignore.txt like a static run.
     Per-report failures land in RunResult.errors; the rest still run.
 
     progress, when given, is called as progress(fraction, message): fraction
@@ -94,6 +119,17 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
                     min_confidence=min_confidence, ignore=ignore,
                     progress=sub_progress,
                 )
+            elif rtype == "rebase":
+                if base is None:
+                    raise ValueError("a previous-base list is required")
+                ignore = coverage_ignore.load_ignore(
+                    coverage_ignore.resolve_ignore_path(dest, second)
+                )
+                text = generate_coverage.generate(
+                    list1.data, list2.data, list1.name, list2.name,
+                    min_confidence=min_confidence, ignore=ignore,
+                    base_data=base.data, base_name=base.name,
+                )
             elif rtype == "diff":
                 text = generate_diff.generate(
                     list1.data, list2.data, list1.name, list2.name,
@@ -107,8 +143,14 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
                 )
             else:
                 raise ValueError(f"unknown report type: {rtype}")
+            # Post-generation cancel checkpoint for every report type, before
+            # anything is written (base mode has no sub-progress at all).
+            if progress is not None:
+                progress((i + 1) / count, message)
             out_path = modlist_utils.resolve_output_path(
-                dest, first, second, rtype, _EXTENSIONS[rtype]
+                dest, first, second, rtype, _EXTENSIONS[rtype],
+                first_name=(f"{list1.name} (from {base.name})"
+                            if rtype == "rebase" else None),
             )
             with open(out_path, "w", encoding="utf-8", newline="") as f:
                 f.write(text)
@@ -121,7 +163,7 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
 
     if save_exports and not result.cancelled:
         for side in (list1, list2):
-            if not side.live:
+            if not side.from_profile:
                 continue
             try:
                 # Only resolve_output_path creates dest_dir, and it may not have
@@ -134,3 +176,30 @@ def run_reports(list1, list2, report_types, dest_dir, save_exports=True,
             except Exception as e:
                 result.errors.append(f"export {side.name}: {e}")
     return result
+
+
+def validate_run(list1, list2, report_types, base=None, save_exports=False):
+    """Return an error message if the run cannot proceed, else None.
+
+    save_exports mirrors run_reports: with it on, a profile side named like the
+    previous base would be re-exported over the base snapshot.
+    """
+    if modlist_utils.name_key(list1.name) == modlist_utils.name_key(list2.name):
+        return (
+            "Both lists have the same name; their reports would overwrite "
+            "each other. Rename one of them."
+        )
+    if "rebase" in report_types and base is None:
+        return "The Rebase report needs a previous base list."
+    if "rebase" in report_types and save_exports and base is not None:
+        base_key = modlist_utils.name_key(base.name)
+        for side in (list1, list2):
+            if side.from_profile and modlist_utils.name_key(side.name) == base_key:
+                return (
+                    f"The previous base \"{base.name}\" has the same name as "
+                    f"profile \"{side.name}\". \"Save profile exports as JSON\" "
+                    "would overwrite the previous base file with the new state "
+                    "and the worklist would come out empty. Untick the export "
+                    "option, or rename or move the previous base file."
+                )
+    return None

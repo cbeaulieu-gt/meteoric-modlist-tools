@@ -49,7 +49,8 @@ def read_meta_ini(mod_path):
     if not os.path.exists(meta_ini_path):
         return general_data, installed_files_data
     try:
-        config = configparser.ConfigParser()
+        # interpolation=None: values such as "100% Texture.7z" are literal.
+        config = configparser.ConfigParser(interpolation=None)
         config.read(meta_ini_path, encoding='utf-8')
         if 'General' in config:
             section = config['General']
@@ -102,6 +103,43 @@ def suggested_list_name(organizer):
     return "modlist_export"
 
 
+def make_separator_item(mod_name, order):
+    """Build the item dict for a separator entry."""
+    separator_name = strip_tags(mod_name).replace("_separator", "").strip()
+    return {
+        "id": None,
+        "type": "separator",
+        "separatorName": separator_name,
+        "modName": separator_name,
+        "displayName": mod_name,
+        "plugins": [],
+        "general": {},
+        "installed": {},
+        "order": order,
+        "tags": extract_tags(mod_name),
+        "active": True,
+    }
+
+
+def make_mod_item(mod_name, current_separator, nexus_id, mod_path, active, order):
+    """Build the item dict for a mod entry."""
+    clean_mod_name = strip_tags(mod_name)
+    general_data, installed_files_data = read_meta_ini(mod_path)
+    return {
+        "id": nexus_id if nexus_id > 0 else clean_mod_name,
+        "type": "mod",
+        "separatorName": current_separator,
+        "modName": clean_mod_name,
+        "displayName": mod_name,
+        "plugins": get_plugin_files(mod_path),
+        "general": general_data,
+        "installed": installed_files_data,
+        "order": order,
+        "tags": extract_tags(mod_name),
+        "active": active,
+    }
+
+
 def export_modlist(organizer):
     """Export the active modlist as the JSON-ready list of item dicts.
 
@@ -120,43 +158,133 @@ def export_modlist(organizer):
             continue
 
         if mod.isSeparator() or mod_name.endswith('_separator'):
-            separator_name = strip_tags(mod_name).replace("_separator", "").strip()
-            current_separator = separator_name
-            modlist_data.append({
-                "id": None,
-                "type": "separator",
-                "separatorName": separator_name,
-                "modName": separator_name,
-                "displayName": mod_name,
-                "plugins": [],
-                "general": {},
-                "installed": {},
-                "order": len(modlist_data),
-                "tags": extract_tags(mod_name),
-                "active": True,
-            })
+            item = make_separator_item(mod_name, len(modlist_data))
+            current_separator = item["separatorName"]
+            modlist_data.append(item)
             continue
 
-        mod_path = mod.absolutePath()
-        nexus_id = mod.nexusId()
-        clean_mod_name = strip_tags(mod_name)
-        general_data, installed_files_data = read_meta_ini(mod_path)
         is_active = mod_list.state(mod_name) & mobase.ModState.ACTIVE != 0
-
-        modlist_data.append({
-            "id": nexus_id if nexus_id > 0 else clean_mod_name,
-            "type": "mod",
-            "separatorName": current_separator,
-            "modName": clean_mod_name,
-            "displayName": mod_name,
-            "plugins": get_plugin_files(mod_path),
-            "general": general_data,
-            "installed": installed_files_data,
-            "order": len(modlist_data),
-            "tags": extract_tags(mod_name),
-            "active": is_active,
-        })
+        modlist_data.append(make_mod_item(
+            mod_name, current_separator, mod.nexusId(), mod.absolutePath(),
+            is_active, len(modlist_data),
+        ))
 
     for idx, item in enumerate(modlist_data):
         item["order"] = idx
     return modlist_data
+
+
+def parse_modlist_txt(text):
+    """Parse modlist.txt into (name, enabled) pairs, file order.
+
+    The file lists highest priority first. '+' is enabled, '-' disabled;
+    '*' (unmanaged), '#' comments and blank lines are skipped.
+    """
+    entries = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line[0] not in "+-":
+            continue
+        entries.append((line[1:], line[0] == "+"))
+    return entries
+
+
+def _modid_from_meta(mod_path):
+    """Nexus id from meta.ini, or 0 when absent, blank or invalid."""
+    general, _ = read_meta_ini(mod_path)
+    try:
+        return int(general.get("modid", "") or 0)
+    except ValueError:
+        return 0
+
+
+def _is_backup_name(name):
+    """True for MO2 backup folders (ModInfo::isBackupName: ``.*backup[0-9]*``)."""
+    return re.fullmatch(r".*backup[0-9]*", name) is not None
+
+
+def export_profile_from_files(profile_dir, mods_path):
+    """Export a (non-active) profile from its modlist.txt and the mods folder.
+
+    Same item structure as export_modlist. Entries with no folder in
+    mods_path are skipped; order is top-to-bottom (reverse of the file).
+
+    Folders under mods_path that modlist.txt does not list (any state,
+    compared case-insensitively; dot-prefixed names and non-directories
+    ignored; MO2 backup folders, i.e. names fully matching the
+    case-sensitive ``.*backup[0-9]*``, skipped) are appended as disabled
+    mods, sorted by casefold, because MO2
+    adds such folders as disabled when it loads the profile. ASSUMPTION, to
+    be verified in real MO2: they land at the highest priority, i.e. at the
+    END of this top-to-bottom export.
+    """
+    # utf-8-sig: a BOM would otherwise glue itself to the first line's marker.
+    with open(os.path.join(profile_dir, "modlist.txt"), encoding="utf-8-sig") as f:
+        entries = parse_modlist_txt(f.read())
+
+    # (name, enabled) in top-to-bottom order; unlisted folders go last, disabled.
+    ordered = list(reversed(entries))
+    listed = {name.casefold() for name, _ in entries}
+    unlisted = sorted(
+        (d for d in os.listdir(mods_path)
+         if not d.startswith(".")
+         and d.casefold() not in listed
+         and not _is_backup_name(d)
+         and os.path.isdir(os.path.join(mods_path, d))),
+        key=str.casefold,
+    )
+    ordered.extend((name, False) for name in unlisted)
+
+    items = []
+    current_separator = "Unsectioned"
+    for mod_name, enabled in ordered:
+        mod_path = os.path.join(mods_path, mod_name)
+        if not os.path.isdir(mod_path):
+            continue
+        if mod_name.endswith("_separator"):
+            item = make_separator_item(mod_name, len(items))
+            current_separator = item["separatorName"]
+            items.append(item)
+            continue
+        items.append(make_mod_item(
+            mod_name, current_separator, _modid_from_meta(mod_path),
+            mod_path, enabled, len(items),
+        ))
+    return items
+
+
+def list_profiles(organizer):
+    """Sorted-or-API-ordered profile names for this MO2 instance."""
+    try:
+        return list(organizer.profileNames())
+    except AttributeError:
+        root = os.path.dirname(organizer.profilePath())
+        return sorted(
+            d for d in os.listdir(root)
+            if os.path.isfile(os.path.join(root, d, "modlist.txt"))
+        )
+
+
+def active_profile_name(organizer):
+    """Name of the currently active profile."""
+    return organizer.profileName()
+
+
+def profile_dir(organizer, name):
+    """Absolute folder of the named profile."""
+    try:
+        profile = organizer.getProfile(name)
+    except AttributeError:
+        profile = None
+    if profile is not None:
+        return profile.absolutePath()
+    return os.path.join(os.path.dirname(organizer.profilePath()), name)
+
+
+def export_profile(organizer, name):
+    """Export the named profile; the active one uses the live export."""
+    if name.casefold() == active_profile_name(organizer).casefold():
+        return export_modlist(organizer)
+    return export_profile_from_files(
+        profile_dir(organizer, name), organizer.modsPath()
+    )

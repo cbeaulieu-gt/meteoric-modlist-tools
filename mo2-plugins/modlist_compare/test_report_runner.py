@@ -46,7 +46,7 @@ class TestLoadSideFromFile(unittest.TestCase):
     def test_loads_name_and_data(self):
         side = _side(OLD_LIST)
         self.assertEqual(side.name, "Example List 1.0")
-        self.assertFalse(side.live)
+        self.assertFalse(side.from_profile)
         self.assertTrue(isinstance(side.data, list) and side.data)
 
     def test_rejects_non_list_json(self):
@@ -108,7 +108,7 @@ class TestRunReports(unittest.TestCase):
 
     def test_saves_live_export(self):
         live = _side(NEW_LIST)
-        live.live = True
+        live.from_profile = True
         with tempfile.TemporaryDirectory() as tmp:
             result = report_runner.run_reports(
                 live, _side(OLD_LIST), ["changelog"], tmp, save_exports=True,
@@ -128,7 +128,7 @@ class TestRunReports(unittest.TestCase):
         # Only the report writes create dest_dir; when every report fails, the
         # live export must still land (dest_dir created by the export branch).
         live = _side(NEW_LIST)
-        live.live = True
+        live.from_profile = True
         boom = mock.Mock(side_effect=RuntimeError("boom"))
         with tempfile.TemporaryDirectory() as tmp:
             dest = os.path.join(tmp, "fresh")  # deliberately does not exist yet
@@ -196,7 +196,7 @@ class RunReportsProgressTest(unittest.TestCase):
             if "changelog" in message:
                 raise report_runner.Cancelled()
         live = report_runner.ListSide(
-            name="Live Profile", data=_side(OLD_LIST).data, live=True,
+            name="Live Profile", data=_side(OLD_LIST).data, from_profile=True,
         )
         with tempfile.TemporaryDirectory() as tmp:
             result = report_runner.run_reports(
@@ -210,6 +210,235 @@ class RunReportsProgressTest(unittest.TestCase):
             self.assertFalse(
                 os.path.exists(os.path.join(tmp, "Live Profile.json"))
             )
+
+
+class TestCancelEveryReportType(unittest.TestCase):
+    def test_cancel_on_second_call_discards_report(self):
+        for rtype in ("coverage", "diff", "changelog"):
+            with self.subTest(rtype=rtype):
+                calls = []
+
+                def cancel_on_second_call(fraction, message):
+                    calls.append(fraction)
+                    if len(calls) == 2:
+                        raise report_runner.Cancelled()
+
+                with tempfile.TemporaryDirectory() as tmp:
+                    result = report_runner.run_reports(
+                        _side(NEW_LIST), _side(OLD_LIST), [rtype], tmp,
+                        save_exports=False, progress=cancel_on_second_call,
+                    )
+                    self.assertTrue(result.cancelled)
+                    self.assertEqual(result.written, [])
+                    self.assertEqual(result.errors, [])
+                    leftovers = [
+                        n for _r, _d, files in os.walk(tmp) for n in files
+                    ]
+                    self.assertEqual(leftovers, [])
+
+    def test_post_generation_checkpoint_is_the_last_call(self):
+        # With a single report the final call must be the 1.0 checkpoint
+        # that follows generation, for every type.
+        for rtype in ("coverage", "diff", "changelog"):
+            with self.subTest(rtype=rtype):
+                calls = []
+                with tempfile.TemporaryDirectory() as tmp:
+                    report_runner.run_reports(
+                        _side(NEW_LIST), _side(OLD_LIST), [rtype], tmp,
+                        save_exports=False,
+                        progress=lambda f, m: calls.append(f),
+                    )
+                self.assertEqual(calls[-1], 1.0)
+                self.assertEqual(calls, sorted(calls))
+
+
+class TestRebase(unittest.TestCase):
+    def test_rebase_writes_cli_named_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                _side(NEW_LIST), _side(OLD_LIST), ["rebase"], tmp,
+                save_exports=False, base=_side(OLD_LIST),
+            )
+            self.assertEqual(result.errors, [])
+            self.assertEqual(result.written, [os.path.join(
+                tmp, "Example List 1.0",
+                "Example List 1.1 (from Example List 1.0).rebase.html")])
+            self.assertTrue(os.path.getsize(result.written[0]) > 0)
+
+    def test_cancel_after_rebase_generates_discards_report_and_exports(self):
+        # Base mode reports no sub-progress, so the only post-generation
+        # cancellation point is the checkpoint after generate() returns.
+        calls = []
+
+        def cancel_on_second_call(fraction, message):
+            calls.append((fraction, message))
+            if len(calls) == 2:
+                raise report_runner.Cancelled()
+
+        live = report_runner.ListSide(
+            name="Live Profile", data=_side(NEW_LIST).data, from_profile=True,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                live, _side(OLD_LIST), ["rebase"], tmp,
+                save_exports=True, base=_side(OLD_LIST),
+                progress=cancel_on_second_call,
+            )
+            self.assertGreaterEqual(len(calls), 2)
+            self.assertTrue(result.cancelled)
+            self.assertEqual(result.written, [])
+            self.assertEqual(result.errors, [])
+            leftovers = [
+                name for _root, _dirs, files in os.walk(tmp) for name in files
+            ]
+            self.assertEqual(leftovers, [])
+
+    def test_rebase_without_base_is_an_error_and_other_reports_still_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                _side(NEW_LIST), _side(OLD_LIST), ["rebase", "changelog"], tmp,
+                save_exports=False, base=None,
+            )
+            self.assertEqual(
+                result.errors, ["rebase: a previous-base list is required"])
+            self.assertEqual(len(result.written), 1)
+            self.assertTrue(result.written[0].endswith(".changelog.md"))
+
+    def _rebase_html(self, ignored_names=None):
+        """Render rebase (1.1 vs 1.0, base 1.0) with an optional ignore file."""
+        with tempfile.TemporaryDirectory() as tmp:
+            if ignored_names is not None:
+                target_dir = os.path.join(tmp, "Example List 1.0")
+                os.makedirs(target_dir)
+                with open(os.path.join(target_dir, ".coverage-ignore.txt"), "w",
+                          encoding="utf-8") as f:
+                    f.write("\n".join(ignored_names) + "\n")
+            result = report_runner.run_reports(
+                _side(NEW_LIST), _side(OLD_LIST), ["rebase"], tmp,
+                save_exports=False, base=_side(OLD_LIST),
+            )
+            self.assertEqual(result.errors, [])
+            with open(result.written[0], encoding="utf-8") as f:
+                return f.read()
+
+    def test_rebase_reads_ignore_file(self):
+        baseline = _row_classes(self._rebase_html(), "Sky Idles")
+        self.assertIsNotNone(baseline, "Sky Idles row missing from rebase report")
+        self.assertNotIn("mod-ignored", baseline)
+        html = self._rebase_html(["Sky Idles"])
+        self.assertEqual(_row_classes(html, "Sky Idles"), ["mod-ignored"])
+        self.assertNotIn("mod-ignored", _row_classes(html, "Dear Diary Dark Mode"))
+
+    def test_save_exports_writes_every_profile_side(self):
+        data = _side(OLD_LIST).data
+        a = report_runner.ListSide("Base", data, from_profile=True)
+        b = report_runner.ListSide("Custom", data, from_profile=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                a, b, [], tmp, save_exports=True)
+            self.assertEqual(result.errors, [])
+            for name in ("Base.json", "Custom.json"):
+                self.assertTrue(os.path.exists(os.path.join(tmp, name)))
+
+
+class TestValidateRun(unittest.TestCase):
+    def test_same_name_on_both_sides(self):
+        msg = report_runner.validate_run(
+            report_runner.ListSide("Same", []),
+            report_runner.ListSide("same", []), ["diff"])
+        self.assertIn("same name", msg)
+
+    def test_rebase_requires_a_base(self):
+        msg = report_runner.validate_run(
+            report_runner.ListSide("A", []),
+            report_runner.ListSide("B", []), ["rebase"], base=None)
+        self.assertIn("previous base", msg)
+
+    def _rebase_save(self, base_name, profile_name, save_exports,
+                     profile_side=1):
+        base = report_runner.ListSide(base_name, [])
+        profile = report_runner.ListSide(profile_name, [], from_profile=True)
+        other = report_runner.ListSide("Other", [])
+        sides = (profile, other) if profile_side == 1 else (other, profile)
+        return report_runner.validate_run(
+            *sides, ["rebase"], base=base, save_exports=save_exports)
+
+    def test_rebase_refused_when_export_would_overwrite_base(self):
+        for side in (1, 2):
+            msg = self._rebase_save("Nord", "Nord", True, profile_side=side)
+            self.assertIn("previous base", msg)
+            self.assertIn("Save profile exports", msg)
+
+    def test_rebase_name_clash_is_case_insensitive(self):
+        msg = self._rebase_save("nord", "NORD", True)
+        self.assertIn("previous base", msg)
+
+    def test_rebase_name_clash_allowed_when_not_saving_exports(self):
+        self.assertIsNone(self._rebase_save("Nord", "Nord", False))
+
+    def test_rebase_allowed_when_names_differ(self):
+        self.assertIsNone(self._rebase_save("Nord Old", "Nord", True))
+
+    def test_name_clash_ignored_without_rebase(self):
+        base = report_runner.ListSide("Nord", [])
+        profile = report_runner.ListSide("Nord", [], from_profile=True)
+        self.assertIsNone(report_runner.validate_run(
+            profile, report_runner.ListSide("Other", []), ["diff"],
+            base=base, save_exports=True))
+
+    def test_valid_run_is_none(self):
+        self.assertIsNone(report_runner.validate_run(
+            report_runner.ListSide("A", []),
+            report_runner.ListSide("B", []), ["diff"]))
+
+
+class TestFilterEnabled(unittest.TestCase):
+    @staticmethod
+    def _items():
+        return [
+            {"type": "separator", "modName": "Sep", "order": 0, "active": True},
+            {"modName": "On", "order": 1, "active": True},
+            {"modName": "Off", "order": 2, "active": False},
+            {"modName": "NoKey", "order": 3},
+            {"type": "separator", "modName": "Sep2", "order": 4, "active": True},
+            {"modName": "Off2", "order": 5, "active": False},
+            {"modName": "Last", "order": 6, "active": True},
+        ]
+
+    def test_drops_only_explicitly_inactive(self):
+        out = report_runner.filter_enabled(self._items())
+        self.assertEqual(
+            [i["modName"] for i in out],
+            ["Sep", "On", "NoKey", "Sep2", "Last"],
+        )
+
+    def test_keeps_separator_even_if_marked_inactive(self):
+        data = [{"type": "separator", "modName": "S", "order": 0, "active": False}]
+        self.assertEqual(len(report_runner.filter_enabled(data)), 1)
+
+    def test_missing_or_non_false_active_kept(self):
+        data = [
+            {"modName": "a", "order": 0},
+            {"modName": "b", "order": 1, "active": None},
+            {"modName": "c", "order": 2, "active": 0},
+        ]
+        self.assertEqual(len(report_runner.filter_enabled(data)), 3)
+
+    def test_input_not_mutated(self):
+        data = self._items()
+        snapshot = json.loads(json.dumps(data))
+        out = report_runner.filter_enabled(data)
+        self.assertEqual(data, snapshot)
+        self.assertIsNot(out, data)
+        for item in out:
+            self.assertFalse(any(item is orig for orig in data))
+
+    def test_order_renumbered_contiguously(self):
+        out = report_runner.filter_enabled(self._items())
+        self.assertEqual([i["order"] for i in out], list(range(len(out))))
+
+    def test_empty(self):
+        self.assertEqual(report_runner.filter_enabled([]), [])
 
 
 if __name__ == "__main__":

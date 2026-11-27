@@ -3,7 +3,7 @@
 [b]An MO2 plugin for comparing modlists - see what another list has that yours doesn't, side by side, without leaving Mod Organizer 2.[/b]
 
 [size=3][color=#F5A623][b]Description[/b][/color][/size]
-Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one exports the active profile's modlist to JSON, and one generates reports comparing any two lists - an exported JSON file, your current profile, or one of each. The reports are the same ones the [url=https://github.com/imightbemeteor/meteoric-modlist-tools]meteoric-modlist-tools[/url] command-line tools produce, from the same code, with the same file naming, so plugin output and CLI output are interchangeable.
+Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one exports the active profile's modlist to JSON, and one generates reports comparing any two lists - any MO2 profile or an exported JSON file, in any combination. The reports are the same ones the [url=https://github.com/imightbemeteor/meteoric-modlist-tools]meteoric-modlist-tools[/url] command-line tools produce, from the same code, with the same file naming, so plugin output and CLI output are interchangeable.
 
 [size=3][color=#F5A623][b]Installation Instructions[/b][/color][/size]
 [list=1]
@@ -17,7 +17,8 @@ Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one 
 [*][b]Coverage report[/b] - What a target list is missing or behind on compared to a source list, with per-mod states and a percent-covered badge (HTML)[/*]
 [*][b]Diff report[/b] - Both lists' full ordering side by side, colour-coded, including moves (HTML)[/*]
 [*][b]Changelog[/b] - Added, removed, and updated mods between two versions of a list (markdown)[/*]
-[*][b]Live profile support[/b] - Compare against your current profile directly, no export step needed[/*]
+[*][b]Rebase worklist[/b] - For a custom list that tracks an upstream base: only what changed in the base update, given the new base, your list, and the previous base (HTML)[/*]
+[*][b]Any profile, no export step[/b] - Compare your current profile or any other MO2 profile directly, or mix profiles with saved JSON exports[/*]
 [*][b]Smart matching[/b] - Mods are matched across lists by Nexus IDs, plugin files, and names, so renames and merges are handled[/*]
 [*][b]GitHub Action[/b] - Modlist repos can generate and publish these reports automatically on every release (see below)[/*]
 [*][b]Responsive UI[/b] - Generation runs behind a progress dialog with live percent and cancel; MO2 stays responsive, not frozen[/*]
@@ -26,8 +27,8 @@ Adds a [b]Modlist Compare[/b] submenu to MO2's Tools menu with two entries: one 
 [size=3][color=#F5A623][b]How to Use[/b][/color][/size]
 [list=1]
 [*][b]Export a list[/b] - Tools, Modlist Compare, Export Modlist to JSON saves the active profile[/*]
-[*][b]Open Generate Reports[/b] - Pick List 1 (source/old) and List 2 (target/new): a JSON file or the current profile, with at least one side a file[/*]
-[*][b]Choose reports[/b] - Any combination of Coverage, Diff, and Changelog, plus a destination folder[/*]
+[*][b]Open Generate Reports[/b] - Pick List 1 (source/old) and List 2 (target/new): each can be the current profile, any other profile, or a JSON file[/*]
+[*][b]Choose reports[/b] - Any combination of Coverage, Diff, Changelog, and Rebase (Rebase also needs a Previous base JSON, such as an earlier saved profile export), plus a destination folder; optionally tick Only compare enabled mods to ignore mods a profile has disabled[/*]
 [*][b]Generate[/b] - Reports are written to the destination; Open Folder takes you straight there[/*]
 [/list]
 

@@ -3,8 +3,8 @@
 Export your active Mod Organizer 2 modlist to JSON and compare two modlists without leaving MO2.
 The plugin adds a **Modlist Compare** submenu to MO2's Tools menu with two entries: one that
 writes the current profile's modlist to a JSON file, and one that generates coverage, diff, and
-changelog reports between any two lists — an exported JSON file, your current profile, or one of
-each. The reports are the same ones the
+changelog reports (plus a rebase worklist) between any two lists — any MO2 profile or an exported
+JSON file, in any combination. The reports are the same ones the
 [command-line tools](../../README.md) in this repository produce, from the same code, with the
 same file naming, so plugin output and CLI output are interchangeable.
 
@@ -39,29 +39,59 @@ comes from the list's first separator. This is the export the CLI tools consume.
 
 Opens a dialog:
 
-- **List 1 (source / old)** and **List 2 (target / new)** — each side is either
-  *Current profile* (exported live, in memory) or *JSON file…* (**Browse…** to pick an export).
-  At least one side must be a file; both sides live, or both sides the same file, is rejected.
-- **Reports** — any combination of **Coverage**, **Diff**, and **Changelog**.
+- **List 1 (source / old)** and **List 2 (target / new)** — each side is one of:
+  *Current profile (name)* (exported live, in memory), any other MO2 profile, or
+  *JSON file…* (**Browse…** to pick an export). Both sides may be profiles, files, or one of
+  each; picking the same profile on both sides, or the same file on both, is rejected.
+  A non-active profile is read from its `modlist.txt` plus each mod's `meta.ini`; an entry
+  whose mod folder is missing is skipped, and an installed mod the file does not list is
+  included as disabled, placed last. A profile side is named after the profile.
+- **Reports** — any combination of **Coverage**, **Diff**, **Changelog**, and **Rebase**.
   - *Coverage* — what List 2 is missing or behind on compared to List 1 (HTML).
   - *Diff* — both lists' full ordering side by side, colour-coded (HTML).
   - *Changelog* — added / removed / updated mods, List 1 → List 2 (markdown).
+  - *Rebase* — a worklist of only what changed in a base update (HTML); see
+    [Rebase worklist](#rebase-worklist).
+- **Previous base** — a JSON file, used only by the Rebase report.
 - **Destination folder** — where the reports are written.
-- **Save "Current profile" export as JSON** — when a side is the live profile, also drop that
-  export in the destination folder so the comparison is reproducible later.
+- **Save profile exports as JSON** — also drop each profile side's export in the destination
+  folder, so the comparison is reproducible later (and usable as a Previous base).
+- **Only compare enabled mods** *(optional, off by default)* — all MO2 profiles share one
+  `mods/` folder, so every profile's list also contains the mods only other profiles use, marked
+  disabled, and the reports would count them as present. Ticking this drops disabled mods
+  (separators are kept) from every side and from the Previous base before anything is compared.
+  Because the filter is applied first, exports saved by **Save profile exports as JSON** contain
+  the filtered list too.
 
 **Generate** writes the files and reports what was written (a per-report failure is listed as an
 error; the other reports still run). **Open Folder** in the result dialog opens the destination.
-All dialog settings — destination, selected report types, the save-export checkbox, the last
+All dialog settings — destination, selected report types, the save-export and enabled-only checkboxes, the last
 browse folder — persist across MO2 restarts.
 
 While reports generate, a progress dialog shows live percent and which report is running; MO2
 stays responsive. Closing that dialog by any route — the **Cancel** button, the window's X, or
 Esc — requests cancellation; the run stops at the next checkpoint and the progress dialog closes
 itself then, leaving the Generate Reports dialog open. Reports already written stay on disk, the
-in-progress one is discarded, and live-profile JSON exports are skipped. Any report written
+in-progress one is discarded, and profile JSON exports are skipped. Any report written
 before the cancel is still listed. Hover the list, report, and save-export controls for a short
 explanation of what each does; short hints also sit under the list rows and the destination row.
+
+### Rebase worklist
+
+For a custom list that tracks an upstream base. Set **List 1** to the *new* base, **List 2** to
+your custom list, and **Previous base** to a JSON export of the *old* base (for example, a
+profile export you saved earlier with **Save profile exports as JSON**). The report keeps only
+what changed in the base update — version bumps, plugin-set changes, new mods, and a "Removed in
+base update" section — and drops everything unchanged, including your own deviations from the
+base. It is the same report as the CLI's `--base` mode; see
+[Base update mode](../../README.md#base-update-mode).
+
+The output is `<destination>/<List 2 name>/<List 1 name> (from <Previous base name>).rebase.html`.
+It shares List 2's `.coverage-ignore.txt` with the Coverage report. Rebase requires a Previous
+base; that path is not remembered between sessions (the other dialog settings are). If a profile
+side has the same name as the Previous base while **Save profile exports as JSON** is on, the run
+is refused, because the export would overwrite the Previous base file — untick the option or
+rename the base file.
 
 ## Report naming and CLI interop
 
@@ -71,9 +101,12 @@ Reports are named exactly like the CLI tools' directory mode:
 <destination>/<List 2 name>/<List 1 name>.<type>.<ext>
 ```
 
-`<type>` is `coverage`, `diff`, or `changelog`; the extension is `html` for the first two and
-`md` for the changelog. A list's "name" is the JSON file's basename without extension, or —
-for the live profile — the suggested export name. So pointing the plugin at the same `output/`
+`<type>` is `coverage`, `diff`, `changelog`, or `rebase`; the extension is `html` for all but the
+changelog, which is `md`. (Rebase reports are named `<List 1 name> (from <Previous base name>).rebase.html`.)
+A list's "name" is the JSON file's basename without extension, or — for a profile side — the
+profile's name — including the current profile, which earlier versions named after its first
+separator, so move any old report folders and `.coverage-ignore.txt` files to the profile name.
+So pointing the plugin at the same `output/`
 folder the CLI tools use drops the reports in the same per-target subfolders, and
 `python tools/regenerate.py "<List 2 name>"` refreshes them afterwards — with `--lists` pointed
 at wherever the exported JSONs live, since `regenerate.py` looks in `lists/` by default while
