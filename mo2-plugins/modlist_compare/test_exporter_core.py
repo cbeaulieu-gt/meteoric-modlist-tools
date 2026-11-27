@@ -65,5 +65,127 @@ class TestGetPluginFiles(unittest.TestCase):
         self.assertEqual(exporter_core.get_plugin_files("Z:\\does\\not\\exist"), [])
 
 
+class TestParseModlistTxt(unittest.TestCase):
+    def test_skips_header_blanks_unmanaged_and_reads_state(self):
+        text = "# header\r\n+Mod A\r\n-Mod B\r\n*DLC\r\n\r\n+Sep_separator\r\n+Ünïcode\r\n"
+        self.assertEqual(
+            exporter_core.parse_modlist_txt(text),
+            [("Mod A", True), ("Mod B", False), ("Sep_separator", True), ("Ünïcode", True)],
+        )
+
+
+def _write(path, text):
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
+class TestExportProfileFromFiles(unittest.TestCase):
+    def _make(self, tmp, modlist_text, folders):
+        mods = os.path.join(tmp, "mods")
+        prof = os.path.join(tmp, "profiles", "P")
+        os.makedirs(mods)
+        os.makedirs(prof)
+        for name in folders:
+            os.makedirs(os.path.join(mods, name))
+        _write(os.path.join(prof, "modlist.txt"), modlist_text)
+        return prof, mods
+
+    def test_order_separator_flags_and_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(
+                tmp, "+Mod A\n-Mod B\n+Sep_separator\n", ["Mod A", "Sep_separator"]
+            )
+            _write(os.path.join(mods, "Mod A", "meta.ini"), "[General]\nmodid=5\n")
+            _write(os.path.join(mods, "Mod A", "a.esp"), "")
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["type"], "separator")
+        self.assertEqual(items[0]["separatorName"], "Sep")
+        self.assertEqual(items[0]["order"], 0)
+        self.assertEqual(items[1]["type"], "mod")
+        self.assertEqual(items[1]["id"], 5)
+        self.assertEqual(items[1]["separatorName"], "Sep")
+        self.assertEqual(items[1]["plugins"], ["a.esp"])
+        self.assertIs(items[1]["active"], True)
+        self.assertEqual(items[1]["order"], 1)
+
+    def test_mod_without_modid_uses_clean_name_as_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "-[Tag] Plain\n", ["[Tag] Plain"])
+            items = exporter_core.export_profile_from_files(prof, mods)
+        self.assertEqual(items[0]["id"], "Plain")
+        self.assertEqual(items[0]["tags"], ["Tag"])
+        self.assertIs(items[0]["active"], False)
+
+    def test_empty_profile_returns_empty_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prof, mods = self._make(tmp, "# This file was automatically generated\n", [])
+            self.assertEqual(exporter_core.export_profile_from_files(prof, mods), [])
+
+
+class _Prof:
+    def __init__(self, path):
+        self._p = path
+
+    def absolutePath(self):
+        return self._p
+
+
+class _FullOrg:
+    def __init__(self, path):
+        self._path = path
+
+    def profileNames(self):
+        return ["Active", "Other"]
+
+    def profileName(self):
+        return "Active"
+
+    def getProfile(self, name):
+        return _Prof(self._path)
+
+
+class _BareOrg:
+    def __init__(self, profile_path):
+        self._pp = profile_path
+
+    def profileName(self):
+        return "Active"
+
+    def profilePath(self):
+        return self._pp
+
+    def modsPath(self):
+        return "unused"
+
+
+class TestProfileListing(unittest.TestCase):
+    def test_full_api(self):
+        org = _FullOrg("X:/p/Active")
+        self.assertEqual(exporter_core.list_profiles(org), ["Active", "Other"])
+        self.assertEqual(exporter_core.active_profile_name(org), "Active")
+        self.assertEqual(exporter_core.profile_dir(org, "Active"), "X:/p/Active")
+
+    def test_fallback_scans_profiles_folder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "profiles")
+            for name in ("Active", "Other"):
+                os.makedirs(os.path.join(root, name))
+                _write(os.path.join(root, name, "modlist.txt"), "")
+            os.makedirs(os.path.join(root, "Stray"))
+            org = _BareOrg(os.path.join(root, "Active"))
+            self.assertEqual(exporter_core.list_profiles(org), ["Active", "Other"])
+            self.assertEqual(
+                exporter_core.profile_dir(org, "Other"), os.path.join(root, "Other")
+            )
+
+    def test_export_profile_active_uses_live_export(self):
+        from unittest import mock
+        org = _BareOrg("whatever")
+        with mock.patch.object(exporter_core, "export_modlist", return_value=["live"]) as m:
+            self.assertEqual(exporter_core.export_profile(org, "active"), ["live"])
+        m.assert_called_once_with(org)
+
+
 if __name__ == "__main__":
     unittest.main()
