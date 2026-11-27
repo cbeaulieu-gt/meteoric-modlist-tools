@@ -94,7 +94,7 @@ class RenderTest(unittest.TestCase):
         self.assertIn("function applySectionVisibility", self.html)
         self.assertIn("function rowCounts", self.html)
         self.assertIn("function refilter", self.html)
-        self.assertIn("applySectionVisibility(terms.length>0)", self.html)
+        self.assertIn("applySectionVisibility(active)", self.html)
 
     def test_rowcounts_accounts_for_hide_unchanged(self):
         # An unchanged row suppressed by Hide unchanged must not keep its section
@@ -104,6 +104,51 @@ class RenderTest(unittest.TestCase):
 
     def test_toggle_unchanged_refilters(self):
         self.assertIn("refilter();", self.html)
+
+
+class FilterControlsTest(unittest.TestCase):
+    """Change-type chips and exclusion filters (mods / groups / categories)."""
+
+    def setUp(self):
+        sec = DiffRow(is_section=True, section_match=SectionMatch(
+            "Custom Animations", "Custom Animations", ChangeType.UNCHANGED))
+        both = DiffRow(
+            left_mod={"modName": "Walk", "general": {"category": '"1,2,"'}},
+            right_mod={"modName": "Walk", "general": {"category": '"1,2,"'}},
+            change=ChangeType.MOVED | ChangeType.UPDATED,
+            old_version="1", new_version="2")
+        gone = DiffRow(left_mod={"modName": "Gone", "general": {"category": ""}},
+                       change=ChangeType.REMOVED)
+        same = DiffRow(left_mod={"modName": "Same"}, right_mod={"modName": "Same"})
+        self.html = render_html([sec, both, gone, same], "Old", "New", _summary())
+
+    def test_type_chips(self):
+        for t in ("added", "removed", "moved", "updated"):
+            self.assertRegex(self.html, rf'type-chip[^>]*data-type="{t}"')
+
+    def test_row_types(self):
+        self.assertIn('data-types="moved updated"', self.html)
+        self.assertIn('data-types="removed"', self.html)
+        self.assertNotRegex(self.html, r'class="mod-unchanged"[^>]*data-types')
+
+    def test_row_group_and_category(self):
+        self.assertIn('data-sec="custom animations"', self.html)
+        self.assertIn('data-cat="1 2"', self.html)
+        self.assertIn('data-cat="none"', self.html)
+
+    def test_exclusion_controls(self):
+        self.assertIn('id="ex-mods"', self.html)
+        self.assertIn('id="ex-groups"', self.html)
+        self.assertIn('<input type="checkbox" value="custom animations">', self.html)
+        self.assertIn('<input type="checkbox" value="2">', self.html)
+        self.assertIn('<input type="checkbox" value="none">', self.html)
+
+    def test_no_dropdown_without_data(self):
+        self.assertNotIn('class="ex-list"', render_html([], "Old", "New", _summary()))
+
+    def test_filter_js(self):
+        self.assertIn("dataset.types", self.html)
+        self.assertIn("csv('ex-mods')", self.html)
 
 
 class NexusLinkTest(unittest.TestCase):

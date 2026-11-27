@@ -161,6 +161,14 @@ headers are matched by a waterfall (exact name → which new section most of an 
 mods landed in → fuzzy name), so a renamed section still lines up instead of reading as one
 section removed and another added.
 
+**Filters** (in the page, no flags): the mod-name box matches either side's name (space = AND);
+the four summary chips (added / removed / moved / updated) toggle change types — a moved + updated
+mod stays while either is on; **Hide mods** / **Hide groups** take comma-separated text (any term
+hides, case-insensitive substring; groups match the separator name); **Groups** and **Categories**
+dropdowns hide by checkbox. Categories are Nexus category IDs (the export carries no names), `(none)`
+for blank. A mod's group is the separator above it, so hiding a major band hides only mods directly
+under it. Sections left empty collapse while any filter is active.
+
 ## Coverage states
 
 Every row in a coverage report carries one of these states, shown as a glyph in a left icon
