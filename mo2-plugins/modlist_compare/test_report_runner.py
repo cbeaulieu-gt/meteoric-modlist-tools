@@ -225,6 +225,34 @@ class TestRebase(unittest.TestCase):
                 "Example List 1.1 (from Example List 1.0).rebase.html")])
             self.assertTrue(os.path.getsize(result.written[0]) > 0)
 
+    def test_cancel_after_rebase_generates_discards_report_and_exports(self):
+        # Base mode reports no sub-progress, so the only post-generation
+        # cancellation point is the checkpoint after generate() returns.
+        calls = []
+
+        def cancel_on_second_call(fraction, message):
+            calls.append((fraction, message))
+            if len(calls) == 2:
+                raise report_runner.Cancelled()
+
+        live = report_runner.ListSide(
+            name="Live Profile", data=_side(NEW_LIST).data, from_profile=True,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                live, _side(OLD_LIST), ["rebase"], tmp,
+                save_exports=True, base=_side(OLD_LIST),
+                progress=cancel_on_second_call,
+            )
+            self.assertGreaterEqual(len(calls), 2)
+            self.assertTrue(result.cancelled)
+            self.assertEqual(result.written, [])
+            self.assertEqual(result.errors, [])
+            leftovers = [
+                name for _root, _dirs, files in os.walk(tmp) for name in files
+            ]
+            self.assertEqual(leftovers, [])
+
     def test_rebase_without_base_is_an_error_and_other_reports_still_run(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = report_runner.run_reports(
