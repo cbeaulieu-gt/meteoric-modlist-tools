@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QFileDialog, QMessageBox
 from . import exporter_core
 
 SUBMENU = "Modlist Compare"
-VERSION = mobase.VersionInfo(1, 1, 0)
+VERSION = mobase.VersionInfo(1, 2, 0)
 
 
 class _BaseTool(mobase.IPluginTool):
