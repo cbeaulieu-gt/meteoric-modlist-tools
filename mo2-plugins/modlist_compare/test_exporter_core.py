@@ -9,6 +9,27 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modlist_compare import exporter_core
 
 
+class TestFindCategoryNames(unittest.TestCase):
+    class _Org:
+        def __init__(self, base):
+            self._base = base
+
+        def basePath(self):
+            return self._base
+
+    def test_reads_categories_dat(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "categories.dat"), "w", encoding="utf-8") as f:
+                f.write("1|Animations|2|0\n")
+            self.assertEqual(exporter_core.find_category_names(self._Org(d)),
+                             {"1": "Animations"})
+
+    def test_missing_file_or_api_error_is_empty(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(exporter_core.find_category_names(self._Org(d)), {})
+        self.assertEqual(exporter_core.find_category_names(object()), {})
+
+
 class TestTagHelpers(unittest.TestCase):
     def test_strip_tags(self):
         self.assertEqual(exporter_core.strip_tags("[NoDelete] Awesome Mod"), "Awesome Mod")

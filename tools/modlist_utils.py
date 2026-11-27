@@ -199,6 +199,28 @@ def clean_version(raw):
     return raw
 
 
+def parse_category_names(text):
+    """Map MO2 category IDs to names from the text of an MO2 ``categories.dat``.
+
+    Lines read ``ID|Name|NexusIDs|ParentID``; only the first two fields matter.
+    Blank or malformed lines are skipped. IDs are returned as strings, matching
+    how they appear in a mod's ``general.category``.
+    """
+    names = {}
+    for line in text.lstrip("﻿").splitlines():
+        parts = line.split("|")
+        cat_id, name = parts[0].strip(), parts[1].strip() if len(parts) > 1 else ""
+        if cat_id.isdigit() and name:
+            names[cat_id] = name
+    return names
+
+
+def load_category_names(path):
+    """Read an MO2 ``categories.dat`` into ``{id: name}`` (see parse_category_names)."""
+    with open(path, encoding="utf-8", errors="replace") as f:
+        return parse_category_names(f.read())
+
+
 def get_version(mod):
     """Extract and clean the version from a mod dict."""
     general = mod.get("general", {})

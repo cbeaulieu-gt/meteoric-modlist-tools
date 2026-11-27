@@ -72,9 +72,11 @@ class _ReportWorker(QThread):
     progress_changed = pyqtSignal(int, str)
     done = pyqtSignal(object)  # RunResult (its .cancelled reflects an abort)
 
-    def __init__(self, parent, side1, side2, report_types, dest, save_exports):
+    def __init__(self, parent, side1, side2, report_types, dest, save_exports,
+                 categories=None):
         super().__init__(parent)
         self._args = (side1, side2, report_types, dest, save_exports)
+        self._categories = categories
         self.cancel_event = threading.Event()
         self._last_emitted = None
 
@@ -106,6 +108,7 @@ class _ReportWorker(QThread):
             result = report_runner.run_reports(
                 side1, side2, report_types, dest,
                 save_exports=save_exports, progress=self._on_progress,
+                categories=self._categories,
             )
         except BaseException as e:
             # Unexpected failure: surface through the same errors path the
@@ -381,6 +384,7 @@ class GenerateReportsDialog(QDialog):
         self._worker = _ReportWorker(
             self, side1, side2, report_types, dest,
             self._save_export_box.isChecked(),
+            exporter_core.find_category_names(self._organizer),
         )
         self._progress = _ProgressDialog(self, self._on_cancel_clicked)
         self._worker.progress_changed.connect(self._on_progress_changed)
