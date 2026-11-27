@@ -46,7 +46,7 @@ class TestLoadSideFromFile(unittest.TestCase):
     def test_loads_name_and_data(self):
         side = _side(OLD_LIST)
         self.assertEqual(side.name, "Example List 1.0")
-        self.assertFalse(side.live)
+        self.assertFalse(side.from_profile)
         self.assertTrue(isinstance(side.data, list) and side.data)
 
     def test_rejects_non_list_json(self):
@@ -108,7 +108,7 @@ class TestRunReports(unittest.TestCase):
 
     def test_saves_live_export(self):
         live = _side(NEW_LIST)
-        live.live = True
+        live.from_profile = True
         with tempfile.TemporaryDirectory() as tmp:
             result = report_runner.run_reports(
                 live, _side(OLD_LIST), ["changelog"], tmp, save_exports=True,
@@ -128,7 +128,7 @@ class TestRunReports(unittest.TestCase):
         # Only the report writes create dest_dir; when every report fails, the
         # live export must still land (dest_dir created by the export branch).
         live = _side(NEW_LIST)
-        live.live = True
+        live.from_profile = True
         boom = mock.Mock(side_effect=RuntimeError("boom"))
         with tempfile.TemporaryDirectory() as tmp:
             dest = os.path.join(tmp, "fresh")  # deliberately does not exist yet
@@ -196,7 +196,7 @@ class RunReportsProgressTest(unittest.TestCase):
             if "changelog" in message:
                 raise report_runner.Cancelled()
         live = report_runner.ListSide(
-            name="Live Profile", data=_side(OLD_LIST).data, live=True,
+            name="Live Profile", data=_side(OLD_LIST).data, from_profile=True,
         )
         with tempfile.TemporaryDirectory() as tmp:
             result = report_runner.run_reports(
@@ -210,6 +210,61 @@ class RunReportsProgressTest(unittest.TestCase):
             self.assertFalse(
                 os.path.exists(os.path.join(tmp, "Live Profile.json"))
             )
+
+
+class TestRebase(unittest.TestCase):
+    def test_rebase_writes_cli_named_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                _side(NEW_LIST), _side(OLD_LIST), ["rebase"], tmp,
+                save_exports=False, base=_side(OLD_LIST),
+            )
+            self.assertEqual(result.errors, [])
+            self.assertEqual(result.written, [os.path.join(
+                tmp, "Example List 1.0",
+                "Example List 1.1 (from Example List 1.0).rebase.html")])
+            self.assertTrue(os.path.getsize(result.written[0]) > 0)
+
+    def test_rebase_without_base_is_an_error_and_other_reports_still_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                _side(NEW_LIST), _side(OLD_LIST), ["rebase", "changelog"], tmp,
+                save_exports=False, base=None,
+            )
+            self.assertEqual(
+                result.errors, ["rebase: a previous-base list is required"])
+            self.assertEqual(len(result.written), 1)
+            self.assertTrue(result.written[0].endswith(".changelog.md"))
+
+    def test_save_exports_writes_every_profile_side(self):
+        data = _side(OLD_LIST).data
+        a = report_runner.ListSide("Base", data, from_profile=True)
+        b = report_runner.ListSide("Custom", data, from_profile=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            result = report_runner.run_reports(
+                a, b, [], tmp, save_exports=True)
+            self.assertEqual(result.errors, [])
+            for name in ("Base.json", "Custom.json"):
+                self.assertTrue(os.path.exists(os.path.join(tmp, name)))
+
+
+class TestValidateRun(unittest.TestCase):
+    def test_same_name_on_both_sides(self):
+        msg = report_runner.validate_run(
+            report_runner.ListSide("Same", []),
+            report_runner.ListSide("same", []), ["diff"])
+        self.assertIn("same name", msg)
+
+    def test_rebase_requires_a_base(self):
+        msg = report_runner.validate_run(
+            report_runner.ListSide("A", []),
+            report_runner.ListSide("B", []), ["rebase"], base=None)
+        self.assertIn("previous base", msg)
+
+    def test_valid_run_is_none(self):
+        self.assertIsNone(report_runner.validate_run(
+            report_runner.ListSide("A", []),
+            report_runner.ListSide("B", []), ["diff"]))
 
 
 if __name__ == "__main__":

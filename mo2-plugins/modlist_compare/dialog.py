@@ -340,7 +340,7 @@ class GenerateReportsDialog(QDialog):
                     f"{label}: could not export the current profile\n\n{e}"
                 )
                 return None
-            return report_runner.ListSide(name=name, data=data, live=True)
+            return report_runner.ListSide(name=name, data=data, from_profile=True)
         path = picker.path()
         if not path:
             self._warn(f"{label}: choose a JSON file (or switch to Current profile).")
